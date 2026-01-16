@@ -1,0 +1,507 @@
+
+
+# 📘 Developer PRD — Learning Management System (LMS)
+
+**Audience:** Backend, Frontend, DevOps Engineers
+**Scope:** Full-stack implementation
+**Non-goals:** Marketing copy, business justification, UI/UX mockups
+
+---
+
+## 1. System Architecture Overview
+
+**High-level architecture (textual diagram):**
+
+```
+[ React Frontend ]
+        |
+        | HTTPS (JWT)
+        v
+[ Node.js + Express API ]
+        |
+        | ORM / SQL
+        v
+[ MySQL (RDS) ]
+
+External Services:
+- Google OAuth (Auth)
+- Razorpay (Payments)
+- YouTube (Video Embeds)
+- AWS S3 (Resources, Certificates)
+- GPT OSS API via Hugging Face (AI)
+```
+
+**Key architectural principles:**
+
+* Stateless backend (JWT-based auth)
+* RESTful API design (versioned)
+* RBAC enforced server-side
+* Idempotent payment + webhook handling
+* Eventual consistency for AI-generated artifacts
+
+---
+
+## 2. User Roles & RBAC
+
+### Roles
+
+| Role       | Description                          |
+| ---------- | ------------------------------------ |
+| Student    | Enrolls in courses, consumes content |
+| Instructor | Manages own courses and lessons      |
+| Admin      | (System-level; minimal scope here)   |
+
+### RBAC Rules
+
+| Resource     | Student              | Instructor                 |
+| ------------ | -------------------- | -------------------------- |
+| Courses      | Read (enrolled/free) | CRUD (own only)            |
+| Lessons      | Read (enrolled)      | CRUD (own course only)     |
+| Resources    | Download (enrolled)  | Upload/Delete (own course) |
+| Enrollments  | Read (self)          | Read (own courses)         |
+| Payments     | Read (self)          | ❌                          |
+| Certificates | Download (self)      | ❌                          |
+
+**Implementation:**
+
+* `role` field in JWT payload
+* Middleware: `authorize(roles: Role[])`
+* Ownership checks at DB query level (`WHERE instructor_id = req.user.id`)
+
+---
+
+## 3. Authentication & Authorization
+
+### Authentication Methods
+
+1. **Email/Password**
+2. **Google OAuth 2.0**
+
+### JWT Strategy
+
+* Access Token (15 min)
+* Refresh Token (7 days)
+* Refresh token stored as:
+
+  * HTTP-only cookie OR
+  * Encrypted DB record (recommended)
+
+**JWT Payload**
+
+```json
+{
+  "sub": "user_id",
+  "role": "student|instructor|admin",
+  "iat": 123456,
+  "exp": 123456
+}
+```
+
+### Middleware
+
+* `authenticateJWT`
+* `authorizeRole`
+* `validateOwnership(resourceType)`
+
+### Edge Cases
+
+* Token reuse after logout → refresh token invalidation
+* OAuth users without password → block password login
+* Role escalation prevention (role immutable via API)
+
+---
+
+## 4. Course & Lesson Management
+
+### Course Entity
+
+| Field         | Type          |
+| ------------- | ------------- |
+| id            | UUID          |
+| title         | VARCHAR(255)  |
+| description   | TEXT          |
+| instructor_id | FK(users.id)  |
+| price         | DECIMAL(10,2) |
+| is_free       | BOOLEAN       |
+| is_published  | BOOLEAN       |
+| created_at    | TIMESTAMP     |
+
+### Lesson Entity
+
+| Field        | Type           |
+| ------------ | -------------- |
+| id           | UUID           |
+| course_id    | FK(courses.id) |
+| title        | VARCHAR(255)   |
+| youtube_url  | VARCHAR(255)   |
+| order_index  | INT            |
+| content_text | TEXT           |
+| created_at   | TIMESTAMP      |
+
+### Video Validation
+
+* Regex validation for:
+
+  * `youtube.com/watch?v=`
+  * `youtu.be/`
+* Store **video ID only**
+* Embed URL generated server-side
+
+### Ordering Logic
+
+* `order_index` unique per course
+* On insert:
+
+  * Append to end
+* On reorder:
+
+  * Transactional updates
+  * Avoid gaps during reorder
+
+---
+
+## 5. Lesson Completion & Progress Tracking
+
+### Lesson Progress Table
+
+| Field        | Type           |
+| ------------ | -------------- |
+| user_id      | FK(users.id)   |
+| lesson_id    | FK(lessons.id) |
+| completed_at | TIMESTAMP      |
+
+**Composite Primary Key:** `(user_id, lesson_id)`
+
+### Progress Calculation
+
+```text
+completed_lessons / total_active_lessons * 100
+```
+
+### Edge Cases
+
+* Lesson deleted → exclude from denominator
+* Lesson added mid-course → progress recalculated dynamically
+* Skipped lessons → not marked complete
+* Reordering lessons → no impact on completion
+
+---
+
+## 6. Instructor Dashboard (Backend Behavior)
+
+### Allowed Operations
+
+* Create/update/delete own courses
+* Create/update/delete lessons under own courses
+* Upload resources
+* View enrollments (read-only)
+
+### Constraints
+
+* Hard ownership enforcement
+* Cannot delete:
+
+  * Published course with enrollments (soft delete instead)
+* Lessons deletion:
+
+  * Cascade delete lesson_progress rows
+
+---
+
+## 7. Downloadable Resources
+
+### Resource Table
+
+| Field      | Type          |
+| ---------- | ------------- |
+| id         | UUID          |
+| course_id  | FK            |
+| lesson_id  | FK (nullable) |
+| s3_key     | VARCHAR       |
+| file_type  | VARCHAR       |
+| file_size  | INT           |
+| created_at | TIMESTAMP     |
+
+### File Handling
+
+* Allowed types: `pdf`, `doc`, `docx`
+* Max size: 10MB
+* Upload flow:
+
+  1. Backend generates pre-signed S3 URL
+  2. Client uploads directly to S3
+  3. Backend stores metadata
+
+### Access Control
+
+* Signed download URLs
+* Verify enrollment before issuing URL
+
+---
+
+## 8. Payments & Enrollment (Razorpay)
+
+### Payment Flow
+
+1. Client requests order creation
+2. Backend creates Razorpay order
+3. Client completes payment
+4. Razorpay webhook → backend verifies signature
+5. Enrollment created on successful payment
+
+### Payment Table
+
+| Field               | Type                           |
+| ------------------- | ------------------------------ |
+| id                  | UUID                           |
+| user_id             | FK                             |
+| course_id           | FK                             |
+| razorpay_order_id   | VARCHAR                        |
+| razorpay_payment_id | VARCHAR                        |
+| status              | ENUM(pending, success, failed) |
+
+### Enrollment Table
+
+| Field       | Type      |
+| ----------- | --------- |
+| user_id     | FK        |
+| course_id   | FK        |
+| enrolled_at | TIMESTAMP |
+
+### Edge Cases
+
+* Webhook retry → idempotency via `razorpay_payment_id`
+* Payment success but enrollment failure → retry job
+* Free courses → enrollment without payment
+
+---
+
+## 9. AI Features (GPT OSS via Hugging Face)
+
+### Quiz Generation
+
+**Input**
+
+```json
+{
+  "lesson_text": "...",
+  "num_questions": 5
+}
+```
+
+**Output**
+
+```json
+{
+  "questions": [
+    {
+      "question": "...",
+      "options": ["A", "B", "C", "D"],
+      "answer": "B"
+    }
+  ]
+}
+```
+
+### Chatbot
+
+* Context-limited to lesson/course
+* Max tokens: 2k
+* Rate limit: 10 req/min/user
+
+### Failure Handling
+
+* Timeout → return cached quiz or static fallback
+* API failure → disable AI feature gracefully
+* No blocking of core LMS flows
+
+---
+
+## 10. Certificate Generation
+
+### Completion Criteria
+
+* 100% lesson completion
+* All required quizzes passed (if enabled)
+
+### Generation Flow
+
+1. Validate completion
+2. Generate PDF (server-side)
+3. Upload to S3
+4. Persist certificate record
+
+### Certificate Table
+
+| Field     | Type      |
+| --------- | --------- |
+| id        | UUID      |
+| user_id   | FK        |
+| course_id | FK        |
+| s3_key    | VARCHAR   |
+| issued_at | TIMESTAMP |
+
+### Security
+
+* Signed URLs
+* Ownership verification on download
+
+---
+
+## 11. API Design
+
+### Base
+
+* `/api/v1/*`
+
+### Sample Endpoints
+
+| Method | Endpoint              |
+| ------ | --------------------- |
+| POST   | /auth/login           |
+| GET    | /courses              |
+| POST   | /courses              |
+| POST   | /courses/:id/enroll   |
+| POST   | /lessons/:id/complete |
+| GET    | /progress/:courseId   |
+| POST   | /payments/order       |
+| POST   | /ai/quiz              |
+
+### Standards
+
+* Errors:
+
+```json
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+* Pagination: `?page=&limit=`
+* Filtering: query params only
+* Versioned APIs (no breaking changes in v1)
+
+---
+
+## 12. Database Design (High-Level)
+
+### Relationships
+
+* users 1—N courses
+* courses 1—N lessons
+* users N—M courses (enrollments)
+* users N—M lessons (lesson_progress)
+
+### Indexing
+
+* `enrollments(user_id, course_id)`
+* `lesson_progress(user_id, lesson_id)`
+* `courses(instructor_id)`
+
+### Consistency
+
+* Foreign keys enforced
+* Transactions for:
+
+  * Payment → enrollment
+  * Course deletion cascades
+
+---
+
+## 13. Non-Functional Requirements
+
+### Performance
+
+* API P95 < 300ms
+* DB queries < 100ms avg
+
+### Security
+
+* OWASP Top 10 compliance
+* JWT secret rotation
+* Input validation everywhere
+
+### Rate Limiting
+
+* Auth APIs: 5 req/min/IP
+* AI APIs: 10 req/min/user
+
+### Logging
+
+* Structured logs (JSON)
+* Correlation IDs per request
+
+---
+
+## 14. Deployment & DevOps
+
+### Environments
+
+* dev / staging / prod
+
+### AWS Assumptions
+
+* EC2 (API)
+* RDS MySQL
+* S3 (resources, certificates)
+* CloudWatch logs
+
+### CI/CD
+
+* Lint + test gates
+* DB migrations versioned
+* Rollback support
+
+### Secrets
+
+* AWS Secrets Manager
+* No secrets in env files committed
+
+---
+
+## 15. Testing Strategy
+
+### Unit Tests
+
+* Services
+* Utils
+* Auth middleware
+
+### Integration Tests
+
+* Payment webhooks
+* Enrollment flows
+* RBAC enforcement
+
+### API Tests
+
+* Postman / automated suites
+
+### Edge Cases
+
+* Concurrent enrollments
+* Duplicate webhook events
+* Course updates post-enrollment
+
+---
+
+## 16. Risks & Constraints
+
+| Area     | Risk                       |
+| -------- | -------------------------- |
+| AI       | Rate limits / downtime     |
+| Payments | Webhook delays             |
+| Scaling  | MySQL read pressure        |
+| Video    | YouTube embed restrictions |
+
+**Mitigations**
+
+* Caching
+* Idempotent design
+* Horizontal API scaling
+* Graceful degradation
+
+---
