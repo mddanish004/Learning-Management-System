@@ -8,6 +8,7 @@ import {
   boolean,
   int,
   decimal,
+  primaryKey,
 } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
@@ -92,7 +93,7 @@ export const lesson_progress = mysqlTable("lesson_progress", {
   progress_pct: int("progress_pct").default(0),
   updated_at: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  pk: ["user_id", "course_id"], 
+  pk: primaryKey({ columns: [table.user_id, table.course_id] }),
 }));
 
 export const certificates = mysqlTable("certificates", {
@@ -108,7 +109,7 @@ export const cart_items = mysqlTable("cart_items", {
   course_id: char("course_id", { length: 36 }).notNull(),
   added_at: timestamp("added_at").defaultNow(),
 }, (table) => ({
-  pk: ["user_id", "course_id"],
+  pk: primaryKey({ columns: [table.user_id, table.course_id] }),
 }));
 
 export const sessions = mysqlTable("sessions", {
@@ -122,57 +123,6 @@ export const sessions = mysqlTable("sessions", {
   created_at: timestamp("created_at").defaultNow(),
   last_used_at: timestamp("last_used_at"),
 });
-
-
-courses.foreignKeys = {
-  instructor: { columns: [courses.instructor_id], references: [users.id] },
-};
-
-sections.foreignKeys = {
-  course: { columns: [sections.course_id], references: [courses.id] },
-};
-
-content.foreignKeys = {
-  section: { columns: [content.section_id], references: [sections.id] },
-};
-
-quizzes.foreignKeys = {
-  course: { columns: [quizzes.course_id], references: [courses.id] },
-};
-
-quiz_questions.foreignKeys = {
-  quiz: { columns: [quiz_questions.quiz_id], references: [quizzes.id] },
-};
-
-enrollments.foreignKeys = {
-  user: { columns: [enrollments.user_id], references: [users.id] },
-  course: { columns: [enrollments.course_id], references: [courses.id] },
-};
-
-payments.foreignKeys = {
-  user: { columns: [payments.user_id], references: [users.id] },
-  course: { columns: [payments.course_id], references: [courses.id] },
-};
-
-lesson_progress.foreignKeys = {
-  user: { columns: [lesson_progress.user_id], references: [users.id] },
-  course: { columns: [lesson_progress.course_id], references: [courses.id] },
-};
-
-certificates.foreignKeys = {
-  user: { columns: [certificates.user_id], references: [users.id] },
-  course: { columns: [certificates.course_id], references: [courses.id] },
-};
-
-cart_items.foreignKeys = {
-  user: { columns: [cart_items.user_id], references: [users.id] },
-  course: { columns: [cart_items.course_id], references: [courses.id] },
-};
-
-sessions.foreignKeys = {
-  user: { columns: [sessions.user_id], references: [users.id] },
-};
-
 
 export const usersRelations = relations(users, ({ many, one }) => ({
   courses: many(courses),

@@ -1,20 +1,22 @@
 import express from "express";
-import dotenv from "dotenv"
+import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import authRoutes from "./routes/auth.routes.js";
 
+dotenv.config();
 
-const app= express()
-dotenv.config()
+const app = express();
+const port = process.env.PORT;
 
-app.use(express.json())
+app.use(express.json());
+app.use(cookieParser());
 
-const port= process.env.PORT
+app.use("/api/auth", authRoutes);
 
-
-app.get('/', (req,res) => {
-    res.send("Hello world")
-})
+app.get("/", (req, res) => {
+  res.send("Hello world");
+});
 
 app.listen(port, () => {
-    console.log(`Server is listening on ${port}`);
-    
-})
+  console.log(`Server is listening on ${port}`);
+});
