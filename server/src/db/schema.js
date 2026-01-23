@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
-const UserRole = mysqlEnum("user_role", ["learner", "instructor"]);
+const UserRole = mysqlEnum("user_role", ["learner", "instructor", "admin"]);
 const ContentType = mysqlEnum("content_type", ["video", "pdf", "assignment"]);
 const QuizGeneratedBy = mysqlEnum("quiz_generated_by", ["llm"]);
 const EnrollmentStatus = mysqlEnum("enrollment_status", ["active", "completed"]);

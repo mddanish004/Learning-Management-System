@@ -5,21 +5,29 @@ import { v4 as uuid } from 'uuid';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/tokens.js';
 import { encrypt , decrypt} from '../utils/crypto.js';
 import { eq } from 'drizzle-orm';
+import { ROLES } from '../utils/permissions.js';
 
+const VALID_ROLES = [ROLES.LEARNER, ROLES.INSTRUCTOR, ROLES.ADMIN];
 
-export async function register(req,res){
-    const { name, email, password } = req.body;
+export async function register(req, res) {
+    const { name, email, password, role = ROLES.LEARNER } = req.body;
+
+    if (!VALID_ROLES.includes(role)) {
+        return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    if (role === ROLES.ADMIN) {
+        return res.status(403).json({ error: 'Cannot self-register as admin' });
+    }
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-
     await db.insert(users).values({
-        id: uuid(), 
+        id: uuid(),
         name,
         email,
         password_hash: passwordHash,
-        role: "learner",
-
+        role,
     });
 
     res.status(201).json({ message: "User created" });
@@ -35,10 +43,26 @@ export async function registerInstructor(req, res) {
         name,
         email,
         password_hash: passwordHash,
-        role: "instructor",
+        role: ROLES.INSTRUCTOR,
     });
 
     res.status(201).json({ message: "Instructor account created" });
+}
+
+export async function registerAdmin(req, res) {
+    const { name, email, password } = req.body;
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await db.insert(users).values({
+        id: uuid(),
+        name,
+        email,
+        password_hash: passwordHash,
+        role: ROLES.ADMIN,
+    });
+
+    res.status(201).json({ message: "Admin account created" });
 }
 
 export async function login(req, res) {
