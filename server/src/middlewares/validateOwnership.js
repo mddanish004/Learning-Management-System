@@ -45,3 +45,7 @@ export function validateContentOwnership(paramName = 'contentId') {
 export function validateQuizOwnership(paramName = 'quizId') {
   return validateOwnership('quiz', paramName);
 }
+
+export function validateLessonOwnership(paramName = 'lessonId') {
+  return validateOwnership('lesson', paramName);
+}

@@ -5,5 +5,6 @@ export {
   validateCourseOwnership,
   validateSectionOwnership,
   validateContentOwnership,
-  validateQuizOwnership
+  validateQuizOwnership,
+  validateLessonOwnership
 } from './validateOwnership.js';

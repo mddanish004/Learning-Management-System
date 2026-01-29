@@ -31,11 +31,14 @@ export const users = mysqlTable("users", {
 export const courses = mysqlTable("courses", {
   id: char("id", { length: 36 }).primaryKey(),
   instructor_id: char("instructor_id", { length: 36 }).notNull(),
-  title: varchar("title", { length: 200 }),
+  title: varchar("title", { length: 200 }).notNull(),
   description: text("description"),
-  price: decimal("price", { precision: 10, scale: 2 }),
+  price: decimal("price", { precision: 10, scale: 2 }).default("0.00"),
+  is_free: boolean("is_free").default(true),
   is_published: boolean("is_published").default(false),
   created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+  deleted_at: timestamp("deleted_at"),
 });
 
 export const sections = mysqlTable("sections", {
@@ -87,13 +90,26 @@ export const payments = mysqlTable("payments", {
   created_at: timestamp("created_at").defaultNow(),
 });
 
+export const lessons = mysqlTable("lessons", {
+  id: char("id", { length: 36 }).primaryKey(),
+  course_id: char("course_id", { length: 36 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  youtube_video_id: varchar("youtube_video_id", { length: 20 }),
+  order_index: int("order_index").notNull().default(0),
+  content_text: text("content_text"),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
 export const lesson_progress = mysqlTable("lesson_progress", {
   user_id: char("user_id", { length: 36 }).notNull(),
+  lesson_id: char("lesson_id", { length: 36 }).notNull(),
   course_id: char("course_id", { length: 36 }).notNull(),
   progress_pct: int("progress_pct").default(0),
+  completed: boolean("completed").default(false),
   updated_at: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  pk: primaryKey({ columns: [table.user_id, table.course_id] }),
+  pk: primaryKey({ columns: [table.user_id, table.lesson_id] }),
 }));
 
 export const certificates = mysqlTable("certificates", {
@@ -140,12 +156,21 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
     references: [users.id],
   }),
   sections: many(sections),
+  lessons: many(lessons),
   quizzes: many(quizzes),
   enrollments: many(enrollments),
   payments: many(payments),
   progress: many(lesson_progress),
   certificates: many(certificates),
   cartItems: many(cart_items),
+}));
+
+export const lessonsRelations = relations(lessons, ({ one, many }) => ({
+  course: one(courses, {
+    fields: [lessons.course_id],
+    references: [courses.id],
+  }),
+  progress: many(lesson_progress),
 }));
 
 export const sectionsRelations = relations(sections, ({ one, many }) => ({
@@ -204,6 +229,10 @@ export const lessonProgressRelations = relations(lesson_progress, ({ one }) => (
   user: one(users, {
     fields: [lesson_progress.user_id],
     references: [users.id],
+  }),
+  lesson: one(lessons, {
+    fields: [lesson_progress.lesson_id],
+    references: [lessons.id],
   }),
   course: one(courses, {
     fields: [lesson_progress.course_id],

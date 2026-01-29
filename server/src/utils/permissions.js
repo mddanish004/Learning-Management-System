@@ -1,5 +1,5 @@
 import { db } from '../db/db.js';
-import { courses, sections, content, quizzes } from '../db/schema.js';
+import { courses, sections, content, quizzes, lessons } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 
 export const ROLES = {
@@ -42,6 +42,8 @@ export async function isResourceOwner(userId, resourceType, resourceId) {
       return await isContentOwner(userId, resourceId);
     case 'quiz':
       return await isQuizOwner(userId, resourceId);
+    case 'lesson':
+      return await isLessonOwner(userId, resourceId);
     default:
       return false;
   }
@@ -76,6 +78,14 @@ export async function isQuizOwner(userId, quizId) {
     with: { course: true },
   });
   return quiz?.course?.instructor_id === userId;
+}
+
+export async function isLessonOwner(userId, lessonId) {
+  const lesson = await db.query.lessons.findFirst({
+    where: eq(lessons.id, lessonId),
+    with: { course: true },
+  });
+  return lesson?.course?.instructor_id === userId;
 }
 
 export function addOwnershipFilter(queryBuilder, table, userId) {
