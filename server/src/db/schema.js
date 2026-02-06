@@ -19,6 +19,7 @@ const EnrollmentStatus = mysqlEnum("enrollment_status", ["active", "completed"])
 const PaymentStatus = mysqlEnum("payment_status", ["success", "failed"]);
 
 
+
 export const users = mysqlTable("users", {
   id: char("id", { length: 36 }).primaryKey(),
   name: varchar("name", { length: 100 }),
@@ -70,6 +71,15 @@ export const quiz_questions = mysqlTable("quiz_questions", {
   question: text("question"),
   options: text("options"), 
   answer: text("answer"),
+});
+
+export const ai_quiz_cache = mysqlTable("ai_quiz_cache", {
+  id: char("id", { length: 36 }).primaryKey(),
+  cache_key: varchar("cache_key", { length: 128 }).notNull().unique(),
+  lesson_text: text("lesson_text"),
+  num_questions: int("num_questions").notNull(),
+  quiz_json: text("quiz_json").notNull(),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
 export const enrollments = mysqlTable("enrollments", {

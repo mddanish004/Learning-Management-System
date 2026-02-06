@@ -1,5 +1,6 @@
 export { authenticateJWT } from './authenticateJWT.js';
 export { authorizeRole, ROLES } from './authorizeRole.js';
+export { rateLimitByUser } from './rateLimit.js';
 export {
   validateOwnership,
   validateCourseOwnership,
