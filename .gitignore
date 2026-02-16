@@ -2,3 +2,4 @@ plan/
 node_modules
 .env
 API_DOCUMENTATION.md
+FRONTEND_UI_PROMPT_DOCUMENT.md
