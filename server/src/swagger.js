@@ -38,6 +38,11 @@ const swaggerDocument = {
       description: "CRUD operations for courses",
     },
     {
+      name: "Instructor",
+      description:
+        "Instructor-only operations for owned courses, enrollments, analytics, and resources",
+    },
+    {
       name: "Lessons",
       description:
         "CRUD and reorder operations for lessons within a course",
@@ -492,6 +497,99 @@ const swaggerDocument = {
           download_url: { type: "string", format: "uri" },
           expires_in: { type: "integer", example: 900 },
           resource: { $ref: "#/components/schemas/Resource" },
+        },
+      },
+      InstructorCourseRef: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          title: { type: "string", example: "Intro to Node.js" },
+          instructor_id: { type: "string", format: "uuid" },
+        },
+      },
+      InstructorEnrollment: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          user_id: { type: "string", format: "uuid" },
+          course_id: { type: "string", format: "uuid" },
+          status: { type: "string", enum: ["active", "completed"] },
+          enrolled_at: { type: "string", format: "date-time" },
+          user: { $ref: "#/components/schemas/Instructor" },
+        },
+      },
+      InstructorCourseEnrollmentsResponse: {
+        type: "object",
+        properties: {
+          course: { $ref: "#/components/schemas/InstructorCourseRef" },
+          enrollments: {
+            type: "array",
+            items: { $ref: "#/components/schemas/InstructorEnrollment" },
+          },
+          pagination: { $ref: "#/components/schemas/Pagination" },
+        },
+      },
+      InstructorCourseAnalyticsResponse: {
+        type: "object",
+        properties: {
+          course: {
+            type: "object",
+            properties: {
+              id: { type: "string", format: "uuid" },
+              title: { type: "string" },
+              is_published: { type: "boolean" },
+              created_at: { type: "string", format: "date-time" },
+              updated_at: { type: "string", format: "date-time" },
+            },
+          },
+          stats: {
+            type: "object",
+            properties: {
+              total_enrollments: { type: "integer", example: 30 },
+              active_enrollments: { type: "integer", example: 22 },
+              completed_enrollments: { type: "integer", example: 8 },
+              enrollment_completion_rate: { type: "number", example: 26.67 },
+              lessons_count: { type: "integer", example: 12 },
+              resources_count: { type: "integer", example: 6 },
+              average_progress_pct: { type: "number", example: 48.2 },
+              completed_progress_records: { type: "integer", example: 105 },
+              total_revenue: { type: "number", example: 1499.5 },
+            },
+          },
+        },
+      },
+      InstructorCourseResourcesResponse: {
+        type: "object",
+        properties: {
+          course: { $ref: "#/components/schemas/InstructorCourseRef" },
+          resources: {
+            type: "array",
+            items: { $ref: "#/components/schemas/Resource" },
+          },
+          pagination: { $ref: "#/components/schemas/Pagination" },
+        },
+      },
+      InstructorResourceUploadUrlRequest: {
+        type: "object",
+        required: ["file_name", "file_size"],
+        properties: {
+          file_name: {
+            type: "string",
+            description: "Allowed extensions: pdf, doc, docx",
+            example: "lesson-1-notes.pdf",
+          },
+          file_type: {
+            type: "string",
+            description: "Must match the file extension MIME type",
+            example: "application/pdf",
+          },
+          file_size: {
+            type: "integer",
+            minimum: 1,
+            maximum: 10485760,
+            description: "Max 10MB",
+            example: 245760,
+          },
         },
       },
 
@@ -1125,7 +1223,7 @@ const swaggerDocument = {
         tags: ["Courses"],
         summary: "Delete a course",
         description:
-          "Deletes a course. If published with enrollments it is soft-deleted; otherwise it is permanently removed.",
+          "Soft-deletes a course by setting `deleted_at` and unpublishing it. Published courses with enrollments cannot be deleted.",
         operationId: "deleteCourse",
         security: [{ BearerAuth: [] }],
         parameters: [
@@ -1139,7 +1237,7 @@ const swaggerDocument = {
         ],
         responses: {
           200: {
-            description: "Course deleted (soft or hard)",
+            description: "Course soft-deleted",
             content: {
               "application/json": {
                 schema: {
@@ -1147,10 +1245,21 @@ const swaggerDocument = {
                   properties: {
                     message: {
                       type: "string",
-                      example: "Course soft deleted (has enrollments)",
+                      example: "Course deleted",
                     },
                     soft_deleted: { type: "boolean", example: true },
                   },
+                },
+              },
+            },
+          },
+          400: {
+            description: "Cannot delete published course with enrollments",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: {
+                  error: "Published courses with enrollments cannot be deleted",
                 },
               },
             },
@@ -1163,6 +1272,592 @@ const swaggerDocument = {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },
                 example: { error: "Course not found" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/instructor/courses": {
+      get: {
+        tags: ["Instructor"],
+        summary: "List instructor courses",
+        description:
+          "Returns a paginated list of the authenticated instructor's own courses.",
+        operationId: "instructorListCourses",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "page",
+            in: "query",
+            schema: { type: "integer", default: 1, minimum: 1 },
+            description: "Page number",
+          },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", default: 10, minimum: 1, maximum: 100 },
+            description: "Items per page (max 100)",
+          },
+          {
+            name: "is_published",
+            in: "query",
+            schema: { type: "string", enum: ["true", "false"] },
+            description: "Filter by publish status",
+          },
+          {
+            name: "include_deleted",
+            in: "query",
+            schema: { type: "string", enum: ["true", "false"], default: "false" },
+            description: "Include soft-deleted courses",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of instructor courses",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    courses: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/Course" },
+                    },
+                    pagination: { $ref: "#/components/schemas/Pagination" },
+                  },
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+        },
+      },
+      post: {
+        tags: ["Instructor"],
+        summary: "Create instructor course",
+        description:
+          "Creates a new course owned by the authenticated instructor.",
+        operationId: "instructorCreateCourse",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateCourseRequest" },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Course created successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    message: { type: "string", example: "Course created" },
+                    course: { $ref: "#/components/schemas/Course" },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: "Validation errors",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ValidationErrorResponse",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+        },
+      },
+    },
+    "/api/v1/instructor/courses/{id}": {
+      put: {
+        tags: ["Instructor"],
+        summary: "Update instructor course",
+        description:
+          "Updates an owned course. Ownership is strictly enforced.",
+        operationId: "instructorUpdateCourse",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateCourseRequest" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Course updated successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    message: { type: "string", example: "Course updated" },
+                    course: { $ref: "#/components/schemas/Course" },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: "Validation errors",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ValidationErrorResponse",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Course not found" },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        tags: ["Instructor"],
+        summary: "Delete instructor course",
+        description:
+          "Soft-deletes an owned course by setting `deleted_at` and unpublishing it. Published courses with enrollments cannot be deleted.",
+        operationId: "instructorDeleteCourse",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Course soft-deleted",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    message: { type: "string", example: "Course deleted" },
+                    soft_deleted: { type: "boolean", example: true },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: "Cannot delete published course with enrollments",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: {
+                  error: "Published courses with enrollments cannot be deleted",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Course not found" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/instructor/courses/{id}/enrollments": {
+      get: {
+        tags: ["Instructor"],
+        summary: "List enrollments for owned course",
+        description:
+          "Returns enrollments for an owned course with pagination and optional status filtering.",
+        operationId: "instructorListCourseEnrollments",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+          {
+            name: "page",
+            in: "query",
+            schema: { type: "integer", default: 1, minimum: 1 },
+            description: "Page number",
+          },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", default: 10, minimum: 1, maximum: 100 },
+            description: "Items per page (max 100)",
+          },
+          {
+            name: "status",
+            in: "query",
+            schema: { type: "string", enum: ["active", "completed"] },
+            description: "Optional enrollment status filter",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Course enrollment list",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref:
+                    "#/components/schemas/InstructorCourseEnrollmentsResponse",
+                },
+              },
+            },
+          },
+          400: {
+            description: "Invalid status filter",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "status must be one of: active, completed" },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Course not found" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/instructor/courses/{id}/analytics": {
+      get: {
+        tags: ["Instructor"],
+        summary: "Get analytics for owned course",
+        description:
+          "Returns enrollment, lesson, resource, progress, and revenue statistics for an owned course.",
+        operationId: "instructorGetCourseAnalytics",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Course analytics",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/InstructorCourseAnalyticsResponse",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Course not found" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/instructor/courses/{id}/resources": {
+      get: {
+        tags: ["Instructor"],
+        summary: "List resources for owned course",
+        description:
+          "Returns paginated resources for an owned course.",
+        operationId: "instructorListCourseResources",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+          {
+            name: "page",
+            in: "query",
+            schema: { type: "integer", default: 1, minimum: 1 },
+            description: "Page number",
+          },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", default: 10, minimum: 1, maximum: 100 },
+            description: "Items per page (max 100)",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Course resource list",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/InstructorCourseResourcesResponse",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Course not found" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/instructor/courses/{id}/resources/upload-url": {
+      post: {
+        tags: ["Instructor"],
+        summary: "Generate upload URL for owned course resource",
+        description:
+          "Validates file metadata, creates a resource record for an owned course, and returns a pre-signed S3 PUT URL.",
+        operationId: "instructorGenerateCourseResourceUploadUrl",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/InstructorResourceUploadUrlRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Upload URL generated",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ResourceUploadUrlResponse",
+                },
+              },
+            },
+          },
+          400: {
+            description: "Validation errors",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ValidationErrorResponse",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Course not found" },
+              },
+            },
+          },
+          500: {
+            description: "S3 configuration missing",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "S3 is not configured" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/instructor/courses/{id}/resources/{resourceId}/download": {
+      get: {
+        tags: ["Instructor"],
+        summary: "Generate download URL for owned course resource",
+        description:
+          "Returns a pre-signed S3 download URL for a resource in an owned course.",
+        operationId: "instructorGenerateCourseResourceDownloadUrl",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+          {
+            name: "resourceId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Resource UUID",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Signed download URL generated",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ResourceDownloadUrlResponse",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course or resource not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                examples: {
+                  course_not_found: {
+                    value: { error: "Course not found" },
+                  },
+                  resource_not_found: {
+                    value: { error: "Resource not found" },
+                  },
+                },
+              },
+            },
+          },
+          500: {
+            description: "S3 configuration missing",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "S3 is not configured" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/v1/instructor/courses/{id}/resources/{resourceId}": {
+      delete: {
+        tags: ["Instructor"],
+        summary: "Delete resource from owned course",
+        description:
+          "Deletes a resource in an owned course and removes the file from S3.",
+        operationId: "instructorDeleteCourseResource",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Course UUID",
+          },
+          {
+            name: "resourceId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Resource UUID",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Resource deleted",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MessageResponse" },
+                example: { message: "Resource deleted" },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: { $ref: "#/components/responses/Forbidden" },
+          404: {
+            description: "Course or resource not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                examples: {
+                  course_not_found: {
+                    value: { error: "Course not found" },
+                  },
+                  resource_not_found: {
+                    value: { error: "Resource not found" },
+                  },
+                },
+              },
+            },
+          },
+          500: {
+            description: "S3 configuration missing",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "S3 is not configured" },
               },
             },
           },

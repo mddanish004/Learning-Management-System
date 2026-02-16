@@ -287,17 +287,21 @@ export async function deleteCourse(req, res) {
   const hasEnrollments = Number(enrollmentCount[0].count) > 0;
 
   if (course.is_published && hasEnrollments) {
-    await db
-      .update(courses)
-      .set({ deleted_at: new Date(), is_published: false })
-      .where(eq(courses.id, id));
-
-    return res.json({ message: 'Course soft deleted (has enrollments)', soft_deleted: true });
+    return res.status(400).json({
+      error: 'Published courses with enrollments cannot be deleted',
+    });
   }
 
-  await db.delete(courses).where(eq(courses.id, id));
+  await db
+    .update(courses)
+    .set({
+      deleted_at: new Date(),
+      is_published: false,
+      updated_at: new Date(),
+    })
+    .where(eq(courses.id, id));
 
-  res.json({ message: 'Course permanently deleted', soft_deleted: false });
+  res.json({ message: 'Course deleted', soft_deleted: true });
 }
 
 export async function getInstructorCourses(req, res) {

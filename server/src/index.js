@@ -10,6 +10,7 @@ import aiRoutes from "./routes/ai.routes.js";
 import resourceRoutes from "./routes/resource.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import enrollmentRoutes from "./routes/enrollment.routes.js";
+import instructorRoutes from "./routes/instructor.routes.js";
 import { startEnrollmentRetryJob } from "./jobs/enrollmentRetry.job.js";
 
 dotenv.config();
@@ -46,6 +47,7 @@ app.use("/api/v1", progressRoutes);
 app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1/resources", resourceRoutes);
 app.use("/api/v1/enrollments", enrollmentRoutes);
+app.use("/api/v1/instructor", instructorRoutes);
 
 startEnrollmentRetryJob();
 
