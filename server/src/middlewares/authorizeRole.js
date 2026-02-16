@@ -1,3 +1,5 @@
+import { AuthError, ForbiddenError } from '../errors/index.js';
+
 export const ROLES = {
   LEARNER: 'learner',
   INSTRUCTOR: 'instructor',
@@ -7,13 +9,13 @@ export const ROLES = {
 export function authorizeRole(allowedRoles) {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AuthError('Authentication required');
     }
 
     const userRole = req.user.role;
 
     if (!allowedRoles.includes(userRole)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
+      throw new ForbiddenError('Insufficient permissions');
     }
 
     next();

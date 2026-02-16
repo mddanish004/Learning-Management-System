@@ -6,6 +6,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/
 import { encrypt , decrypt} from '../utils/crypto.js';
 import { eq } from 'drizzle-orm';
 import { ROLES } from '../utils/permissions.js';
+import { AuthError } from '../errors/index.js';
 
 const VALID_ROLES = [ROLES.LEARNER, ROLES.INSTRUCTOR, ROLES.ADMIN];
 
@@ -103,14 +104,16 @@ export async function login(req, res) {
 
 export async function refresh(req, res) {
   const refreshToken = req.cookies.refresh_token;
-  if(!refreshToken) return res.sendStatus(401);
+  if(!refreshToken) {
+    throw new AuthError('Refresh token is required');
+  }
 
 
    let payload;
   try {
     payload = verifyRefreshToken(refreshToken);
   } catch {
-    return res.sendStatus(403);
+    throw new AuthError('Invalid refresh token');
   }
 
   const session = await db.query.sessions.findFirst({
@@ -118,11 +121,11 @@ export async function refresh(req, res) {
   });
 
   if (!session || session.is_revoked) {
-    return res.sendStatus(403);
+    throw new AuthError('Session is invalid');
   }
 
   if (decrypt(session.refresh_token) !== refreshToken) {
-    return res.sendStatus(403);
+    throw new AuthError('Refresh token mismatch');
   }
 
   const user = await db.query.users.findFirst({

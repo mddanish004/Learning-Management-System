@@ -1,3 +1,5 @@
+import { TooManyRequestsError } from '../errors/index.js';
+
 const buckets = new Map();
 
 export function rateLimitByUser({ windowMs = 60000, max = 10 } = {}) {
@@ -14,7 +16,7 @@ export function rateLimitByUser({ windowMs = 60000, max = 10 } = {}) {
     if (existing.count >= max) {
       const retryAfter = Math.ceil((existing.resetTime - now) / 1000);
       res.set("Retry-After", String(Math.max(1, retryAfter)));
-      return res.status(429).json({ error: "Rate limit exceeded" });
+      throw new TooManyRequestsError('Rate limit exceeded');
     }
 
     existing.count += 1;

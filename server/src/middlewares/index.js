@@ -1,6 +1,9 @@
 export { authenticateJWT } from './authenticateJWT.js';
 export { authorizeRole, ROLES } from './authorizeRole.js';
 export { rateLimitByUser } from './rateLimit.js';
+export { attachCorrelationId } from './correlationId.js';
+export { validateRequest } from './validateRequest.js';
+export { errorHandler, notFoundHandler, normalizeLegacyErrorResponses } from './errorHandling.js';
 export {
   validateOwnership,
   validateCourseOwnership,

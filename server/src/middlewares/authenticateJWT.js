@@ -1,16 +1,23 @@
 import { verifyAccessToken } from "../utils/tokens.js";
+import { AuthError } from '../errors/index.js';
 
 
 export function authenticateJWT(req, res, next) {
   const header = req.headers.authorization;
-  if (!header) return res.sendStatus(401);
+  if (!header) {
+    throw new AuthError('Authentication required');
+  }
 
   const token = header.split(" ")[1];
+
+  if (!token) {
+    throw new AuthError('Authentication required');
+  }
 
   try {
     req.user = verifyAccessToken(token);
     next();
   } catch {
-    res.sendStatus(403);
+    throw new AuthError('Invalid or expired token');
   }
 }

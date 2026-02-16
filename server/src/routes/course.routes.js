@@ -11,31 +11,45 @@ import {
   enrollInFreeCourse,
   listCourseEnrollments,
 } from '../controllers/enrollment.controller.js';
-import { authenticateJWT, authorizeRole, validateCourseOwnership, ROLES } from '../middlewares/index.js';
+import { authenticateJWT, authorizeRole, validateCourseOwnership, validateRequest, ROLES } from '../middlewares/index.js';
 import lessonRoutes from './lesson.routes.js';
+import { validationSchemas } from '../validators/schemas.js';
 
 const router = Router();
 
 router.use('/:courseId/lessons', lessonRoutes);
 
-router.get('/', getCourses);
+router.get('/', validateRequest(validationSchemas.courses.list), getCourses);
 
-router.get('/my-courses', authenticateJWT, authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]), getInstructorCourses);
+router.get(
+  '/my-courses',
+  validateRequest(validationSchemas.courses.listInstructorCourses),
+  authenticateJWT,
+  authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]),
+  getInstructorCourses
+);
 
-router.post('/:id/enroll', authenticateJWT, enrollInFreeCourse);
+router.post(
+  '/:id/enroll',
+  validateRequest(validationSchemas.courses.enroll),
+  authenticateJWT,
+  enrollInFreeCourse
+);
 
 router.get(
   '/:id/enrollments',
+  validateRequest(validationSchemas.courses.enrollments),
   authenticateJWT,
   authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]),
   validateCourseOwnership('id'),
   listCourseEnrollments
 );
 
-router.get('/:id', getCourseById);
+router.get('/:id', validateRequest(validationSchemas.courses.idParam), getCourseById);
 
 router.post(
   '/',
+  validateRequest(validationSchemas.courses.create),
   authenticateJWT,
   authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]),
   createCourse
@@ -43,6 +57,7 @@ router.post(
 
 router.put(
   '/:id',
+  validateRequest(validationSchemas.courses.update),
   authenticateJWT,
   authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]),
   validateCourseOwnership('id'),
@@ -51,6 +66,7 @@ router.put(
 
 router.delete(
   '/:id',
+  validateRequest(validationSchemas.courses.idParam),
   authenticateJWT,
   authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]),
   validateCourseOwnership('id'),

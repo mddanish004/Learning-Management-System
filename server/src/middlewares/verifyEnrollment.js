@@ -2,17 +2,18 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/db.js';
 import { lessons } from '../db/schema.js';
 import { verifyCourseEnrollmentAccess } from '../services/enrollment.service.js';
+import { AuthError, BadRequestError, NotFoundError, AppError } from '../errors/index.js';
 
 export function requireCourseEnrollment(paramName = 'courseId') {
   return async (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AuthError('Authentication required');
     }
 
     const courseId = req.params[paramName] || req.body[paramName];
 
     if (!courseId) {
-      return res.status(400).json({ error: 'Course ID required' });
+      throw new BadRequestError('Course ID required');
     }
 
     const access = await verifyCourseEnrollmentAccess({
@@ -22,7 +23,10 @@ export function requireCourseEnrollment(paramName = 'courseId') {
     });
 
     if (!access.allowed) {
-      return res.status(access.statusCode).json({ error: access.message });
+      throw new AppError(access.message, {
+        statusCode: access.statusCode,
+        code: access.statusCode === 404 ? 'NOT_FOUND' : 'FORBIDDEN',
+      });
     }
 
     req.course = access.course;
@@ -35,13 +39,13 @@ export function requireCourseEnrollment(paramName = 'courseId') {
 export function requireLessonEnrollment(paramName = 'id') {
   return async (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AuthError('Authentication required');
     }
 
     const lessonId = req.params[paramName] || req.body[paramName];
 
     if (!lessonId) {
-      return res.status(400).json({ error: 'Lesson ID required' });
+      throw new BadRequestError('Lesson ID required');
     }
 
     const lesson = await db.query.lessons.findFirst({
@@ -49,7 +53,7 @@ export function requireLessonEnrollment(paramName = 'id') {
     });
 
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      throw new NotFoundError('Lesson not found');
     }
 
     const access = await verifyCourseEnrollmentAccess({
@@ -59,7 +63,10 @@ export function requireLessonEnrollment(paramName = 'id') {
     });
 
     if (!access.allowed) {
-      return res.status(access.statusCode).json({ error: access.message });
+      throw new AppError(access.message, {
+        statusCode: access.statusCode,
+        code: access.statusCode === 404 ? 'NOT_FOUND' : 'FORBIDDEN',
+      });
     }
 
     req.course = access.course;

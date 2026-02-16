@@ -97,23 +97,24 @@ export async function getCourses(req, res) {
   const pageNum = Math.max(1, parseInt(page));
   const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
   const offset = (pageNum - 1) * limitNum;
+  const includeDeleted = include_deleted === true || include_deleted === 'true';
 
   const conditions = [];
 
-  if (!include_deleted || include_deleted === 'false') {
+  if (!includeDeleted) {
     conditions.push(isNull(courses.deleted_at));
   }
 
-  if (search) {
+  if (typeof search === 'string' && search) {
     conditions.push(like(courses.title, `%${search}%`));
   }
 
   if (is_free !== undefined) {
-    conditions.push(eq(courses.is_free, is_free === 'true'));
+    conditions.push(eq(courses.is_free, is_free === true || is_free === 'true'));
   }
 
   if (is_published !== undefined) {
-    conditions.push(eq(courses.is_published, is_published === 'true'));
+    conditions.push(eq(courses.is_published, is_published === true || is_published === 'true'));
   }
 
   if (instructor_id) {
@@ -316,15 +317,16 @@ export async function getInstructorCourses(req, res) {
   const pageNum = Math.max(1, parseInt(page));
   const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
   const offset = (pageNum - 1) * limitNum;
+  const includeDeleted = include_deleted === true || include_deleted === 'true';
 
   const conditions = [eq(courses.instructor_id, instructorId)];
 
-  if (!include_deleted || include_deleted === 'false') {
+  if (!includeDeleted) {
     conditions.push(isNull(courses.deleted_at));
   }
 
   if (is_published !== undefined) {
-    conditions.push(eq(courses.is_published, is_published === 'true'));
+    conditions.push(eq(courses.is_published, is_published === true || is_published === 'true'));
   }
 
   const whereClause = and(...conditions);

@@ -1,9 +1,10 @@
 import { isResourceOwner, ROLES } from '../utils/permissions.js';
+import { AuthError, BadRequestError, ForbiddenError } from '../errors/index.js';
 
 export function validateOwnership(resourceType, paramName = 'id') {
   return async (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AuthError('Authentication required');
     }
 
     if (req.user.role === ROLES.ADMIN) {
@@ -11,19 +12,19 @@ export function validateOwnership(resourceType, paramName = 'id') {
     }
 
     if (req.user.role !== ROLES.INSTRUCTOR) {
-      return res.status(403).json({ error: 'Instructor access required' });
+      throw new ForbiddenError('Instructor access required');
     }
 
     const resourceId = req.params[paramName] || req.body[paramName];
 
     if (!resourceId) {
-      return res.status(400).json({ error: 'Resource ID required' });
+      throw new BadRequestError('Resource ID required');
     }
 
     const isOwner = await isResourceOwner(req.user.sub, resourceType, resourceId);
 
     if (!isOwner) {
-      return res.status(403).json({ error: 'You do not own this resource' });
+      throw new ForbiddenError('You do not own this resource');
     }
 
     next();
