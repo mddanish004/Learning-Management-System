@@ -4,7 +4,7 @@ const swaggerDocument = {
     title: "LMS — Learning Management System API",
     version: "1.0.0",
     description:
-      "Complete REST API for a Learning Management System supporting courses, lessons, progress tracking, and AI-powered quiz generation.\n\n" +
+      "Complete REST API for a Learning Management System supporting courses, lessons, resources, progress tracking, and AI-powered quiz generation.\n\n" +
       "### Authentication\n" +
       "- **Access token** — obtained via `POST /api/auth/login` or `POST /api/auth/refresh`. Send as `Authorization: Bearer <token>`.\n" +
       "- **Refresh token** — stored in an HTTP-only cookie named `refresh_token`.\n\n" +
@@ -12,8 +12,8 @@ const swaggerDocument = {
       "| Role | Capabilities |\n" +
       "|------|-------------|\n" +
       "| **learner** | Register, login, browse courses/lessons, track progress, AI quiz |\n" +
-      "| **instructor** | All learner abilities + create/edit/delete own courses & lessons |\n" +
-      "| **admin** | All instructor abilities + manage any course, register admins |",
+      "| **instructor** | All learner abilities + create/edit/delete own courses, lessons, and resources |\n" +
+      "| **admin** | All instructor abilities + manage any course/resource, register admins |",
     contact: {
       name: "Md Danish",
       url: "https://github.com/mddanish004/Learning-Management-System",
@@ -45,6 +45,10 @@ const swaggerDocument = {
     {
       name: "Progress",
       description: "Lesson completion and course progress tracking",
+    },
+    {
+      name: "Resources",
+      description: "S3 resource upload, download, and deletion",
     },
     {
       name: "AI",
@@ -428,6 +432,66 @@ const swaggerDocument = {
               },
             },
           },
+        },
+      },
+      Resource: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          course_id: { type: "string", format: "uuid" },
+          file_name: { type: "string", example: "lesson-1-notes.pdf" },
+          file_type: { type: "string", example: "application/pdf" },
+          file_size: { type: "integer", example: 245760 },
+          created_at: { type: "string", format: "date-time" },
+        },
+      },
+      ResourceUploadUrlRequest: {
+        type: "object",
+        required: ["course_id", "file_name", "file_size"],
+        properties: {
+          course_id: { type: "string", format: "uuid" },
+          file_name: {
+            type: "string",
+            description: "Allowed extensions: pdf, doc, docx",
+            example: "lesson-1-notes.pdf",
+          },
+          file_type: {
+            type: "string",
+            description: "Must match the file extension MIME type",
+            example: "application/pdf",
+          },
+          file_size: {
+            type: "integer",
+            minimum: 1,
+            maximum: 10485760,
+            description: "Max 10MB",
+            example: 245760,
+          },
+        },
+      },
+      ResourceUploadUrlResponse: {
+        type: "object",
+        properties: {
+          resource_id: { type: "string", format: "uuid" },
+          upload_url: { type: "string", format: "uri" },
+          expires_in: { type: "integer", example: 900 },
+          method: { type: "string", example: "PUT" },
+          required_headers: {
+            type: "object",
+            properties: {
+              "Content-Type": { type: "string", example: "application/pdf" },
+            },
+          },
+          resource: { $ref: "#/components/schemas/Resource" },
+        },
+      },
+      ResourceDownloadUrlResponse: {
+        type: "object",
+        properties: {
+          resource_id: { type: "string", format: "uuid" },
+          download_url: { type: "string", format: "uri" },
+          expires_in: { type: "integer", example: 900 },
+          resource: { $ref: "#/components/schemas/Resource" },
         },
       },
 
@@ -1632,6 +1696,223 @@ const swaggerDocument = {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },
                 example: { error: "Course not found" },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    "/api/v1/resources/upload-url": {
+      post: {
+        tags: ["Resources"],
+        summary: "Generate pre-signed upload URL",
+        description:
+          "Validates file metadata, stores resource metadata, and returns a pre-signed S3 PUT URL. Only instructors/admins can create upload URLs.",
+        operationId: "generateResourceUploadUrl",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ResourceUploadUrlRequest" },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Upload URL generated",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ResourceUploadUrlResponse",
+                },
+              },
+            },
+          },
+          400: {
+            description: "Validation errors",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ValidationErrorResponse",
+                },
+                examples: {
+                  invalid_extension: {
+                    value: {
+                      errors: ["Only pdf, doc, and docx files are allowed"],
+                    },
+                  },
+                  max_size_exceeded: {
+                    value: {
+                      errors: ["Maximum allowed file size is 10MB"],
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: {
+            description: "Not instructor/admin or not course owner",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                examples: {
+                  role_forbidden: {
+                    value: { error: "Insufficient permissions" },
+                  },
+                  owner_forbidden: {
+                    value: { error: "You do not own this course" },
+                  },
+                },
+              },
+            },
+          },
+          404: {
+            description: "Course not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Course not found" },
+              },
+            },
+          },
+          500: {
+            description: "S3 configuration missing",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "S3 is not configured" },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    "/api/v1/resources/{id}/download": {
+      get: {
+        tags: ["Resources"],
+        summary: "Generate signed download URL",
+        description:
+          "Returns a pre-signed S3 download URL for a resource. Access allowed for admins, course owner, or enrolled learners.",
+        operationId: "generateResourceDownloadUrl",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Resource UUID",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Signed download URL generated",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ResourceDownloadUrlResponse",
+                },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: {
+            description: "Not enrolled or no access",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: {
+                  error:
+                    "You must be enrolled in this course to download this resource",
+                },
+              },
+            },
+          },
+          404: {
+            description: "Resource not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Resource not found" },
+              },
+            },
+          },
+          500: {
+            description: "S3 configuration missing",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "S3 is not configured" },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    "/api/v1/resources/{id}": {
+      delete: {
+        tags: ["Resources"],
+        summary: "Delete resource",
+        description:
+          "Deletes a resource record and removes the file from S3. Only admin or course owner can delete.",
+        operationId: "deleteResource",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+            description: "Resource UUID",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Resource deleted",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MessageResponse" },
+                example: { message: "Resource deleted" },
+              },
+            },
+          },
+          401: { $ref: "#/components/responses/Unauthorized" },
+          403: {
+            description: "Not instructor/admin or not owner",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                examples: {
+                  role_forbidden: {
+                    value: { error: "Insufficient permissions" },
+                  },
+                  owner_forbidden: {
+                    value: { error: "You do not own this resource" },
+                  },
+                },
+              },
+            },
+          },
+          404: {
+            description: "Resource not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "Resource not found" },
+              },
+            },
+          },
+          500: {
+            description: "S3 configuration missing",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+                example: { error: "S3 is not configured" },
               },
             },
           },

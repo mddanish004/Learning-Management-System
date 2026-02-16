@@ -15,8 +15,9 @@ This document describes all HTTP APIs exposed by the LMS (Learning Management Sy
 3. [Course APIs](#course-apis)
 4. [Lesson APIs](#lesson-apis)
 5. [Progress APIs](#progress-apis)
-6. [AI APIs](#ai-apis)
-7. [Common Patterns](#common-patterns)
+6. [Resource APIs](#resource-apis)
+7. [AI APIs](#ai-apis)
+8. [Common Patterns](#common-patterns)
 
 ---
 
@@ -668,6 +669,130 @@ Returns progress for the authenticated user in a course. User must be enrolled.
 
 ---
 
+## Resource APIs
+
+Base path: **`/api/v1/resources`**
+
+---
+
+### Generate Upload URL
+
+**`POST /api/v1/resources/upload-url`**
+
+Validates file metadata, stores a resource row in DB, and returns a pre-signed S3 PUT URL.
+
+| Aspect | Details |
+|--------|---------|
+| **Auth** | Required (Bearer). **Roles:** `instructor`, `admin` |
+| **Request Body** | JSON |
+
+**Request Body:**
+
+| Field     | Type   | Required | Description |
+|-----------|--------|----------|-------------|
+| course_id | string | Yes      | Course UUID |
+| file_name | string | Yes      | Must end in `pdf`, `doc`, or `docx` |
+| file_type | string | No       | MIME type; if sent, must match extension |
+| file_size | number | Yes      | File size in bytes (max `10485760`) |
+
+**Responses:**
+
+| Code | Body | Description |
+|------|------|-------------|
+| 201 | See below | Upload URL generated |
+| 400 | `{ "errors": ["..."] }` | Validation errors |
+| 401 | — | No/invalid token |
+| 403 | `{ "error": "Insufficient permissions" }` or `{ "error": "You do not own this course" }` | Role/ownership violation |
+| 404 | `{ "error": "Course not found" }` | Course missing or soft-deleted |
+| 500 | `{ "error": "S3 is not configured" }` | Missing AWS/S3 config |
+
+**Response Body (201):**
+
+```json
+{
+  "resource_id": "uuid",
+  "upload_url": "https://bucket.s3.region.amazonaws.com/...",
+  "expires_in": 900,
+  "method": "PUT",
+  "required_headers": {
+    "Content-Type": "application/pdf"
+  },
+  "resource": {
+    "id": "uuid",
+    "course_id": "uuid",
+    "file_name": "lesson-notes.pdf",
+    "file_type": "application/pdf",
+    "file_size": 245760
+  }
+}
+```
+
+---
+
+### Generate Download URL
+
+**`GET /api/v1/resources/:id/download`**
+
+Returns a signed S3 download URL for a resource. User must be admin, course owner, or enrolled in the course.
+
+| Aspect | Details |
+|--------|---------|
+| **Auth** | Required (Bearer) |
+| **Path Parameters** | `id` — resource UUID |
+
+**Responses:**
+
+| Code | Body | Description |
+|------|------|-------------|
+| 200 | See below | Download URL generated |
+| 401 | — | No/invalid token |
+| 403 | `{ "error": "You must be enrolled in this course to download this resource" }` | No access |
+| 404 | `{ "error": "Resource not found" }` | Resource missing / course deleted |
+| 500 | `{ "error": "S3 is not configured" }` | Missing AWS/S3 config |
+
+**Response Body (200):**
+
+```json
+{
+  "resource_id": "uuid",
+  "download_url": "https://bucket.s3.region.amazonaws.com/...",
+  "expires_in": 900,
+  "resource": {
+    "id": "uuid",
+    "course_id": "uuid",
+    "file_name": "lesson-notes.pdf",
+    "file_type": "application/pdf",
+    "file_size": 245760,
+    "created_at": "ISO date"
+  }
+}
+```
+
+---
+
+### Delete Resource
+
+**`DELETE /api/v1/resources/:id`**
+
+Deletes resource metadata and removes the corresponding object from S3.
+
+| Aspect | Details |
+|--------|---------|
+| **Auth** | Required (Bearer). **Roles:** `instructor`, `admin` |
+| **Path Parameters** | `id` — resource UUID |
+
+**Responses:**
+
+| Code | Body | Description |
+|------|------|-------------|
+| 200 | `{ "message": "Resource deleted" }` | Success |
+| 401 | — | No/invalid token |
+| 403 | `{ "error": "Insufficient permissions" }` or `{ "error": "You do not own this resource" }` | Role/ownership violation |
+| 404 | `{ "error": "Resource not found" }` | Resource missing / course deleted |
+| 500 | `{ "error": "S3 is not configured" }` | Missing AWS/S3 config |
+
+---
+
 ## AI APIs
 
 Base path: **`/api/v1/ai`**
@@ -783,8 +908,8 @@ Authorization: Bearer <accessToken>
 ### User roles
 
 - **learner** — Can register, login, view courses/lessons, mark progress, use AI quiz (when enrolled/authenticated).
-- **instructor** — Same as learner plus: create/edit/delete own courses and lessons, reorder lessons, list my-courses.
-- **admin** — Same as instructor plus: register admin, manage any course (ownership not required).
+- **instructor** — Same as learner plus: create/edit/delete own courses and lessons, reorder lessons, list my-courses, create/delete own resources.
+- **admin** — Same as instructor plus: register admin, manage any course/resource (ownership not required).
 
 ---
 

@@ -7,14 +7,19 @@ import authRoutes from "./routes/auth.routes.js";
 import courseRoutes from "./routes/course.routes.js";
 import progressRoutes from "./routes/progress.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
+import resourceRoutes from "./routes/resource.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
+import enrollmentRoutes from "./routes/enrollment.routes.js";
+import { startEnrollmentRetryJob } from "./jobs/enrollmentRetry.job.js";
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT;
 
-app.use(express.json());
 app.use(cookieParser());
+app.use("/api/v1/payments", paymentRoutes);
+app.use(express.json());
 
 app.use(
   "/api-docs",
@@ -39,6 +44,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1", progressRoutes);
 app.use("/api/v1/ai", aiRoutes);
+app.use("/api/v1/resources", resourceRoutes);
+app.use("/api/v1/enrollments", enrollmentRoutes);
+
+startEnrollmentRetryJob();
 
 app.listen(port, () => {
   console.log(`Server is listening on ${port}`);

@@ -7,6 +7,10 @@ import {
   deleteCourse,
   getInstructorCourses,
 } from '../controllers/course.controller.js';
+import {
+  enrollInFreeCourse,
+  listCourseEnrollments,
+} from '../controllers/enrollment.controller.js';
 import { authenticateJWT, authorizeRole, validateCourseOwnership, ROLES } from '../middlewares/index.js';
 import lessonRoutes from './lesson.routes.js';
 
@@ -17,6 +21,16 @@ router.use('/:courseId/lessons', lessonRoutes);
 router.get('/', getCourses);
 
 router.get('/my-courses', authenticateJWT, authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]), getInstructorCourses);
+
+router.post('/:id/enroll', authenticateJWT, enrollInFreeCourse);
+
+router.get(
+  '/:id/enrollments',
+  authenticateJWT,
+  authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]),
+  validateCourseOwnership('id'),
+  listCourseEnrollments
+);
 
 router.get('/:id', getCourseById);
 

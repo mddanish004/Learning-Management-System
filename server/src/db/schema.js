@@ -9,6 +9,8 @@ import {
   int,
   decimal,
   primaryKey,
+  index,
+  uniqueIndex,
 } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
@@ -16,7 +18,7 @@ const UserRole = mysqlEnum("user_role", ["learner", "instructor", "admin"]);
 const ContentType = mysqlEnum("content_type", ["video", "pdf", "assignment"]);
 const QuizGeneratedBy = mysqlEnum("quiz_generated_by", ["llm"]);
 const EnrollmentStatus = mysqlEnum("enrollment_status", ["active", "completed"]);
-const PaymentStatus = mysqlEnum("payment_status", ["success", "failed"]);
+const PaymentStatus = mysqlEnum("payment_status", ["pending", "processing", "success", "failed", "cancelled"]);
 
 
 
@@ -86,9 +88,13 @@ export const enrollments = mysqlTable("enrollments", {
   id: char("id", { length: 36 }).primaryKey(),
   user_id: char("user_id", { length: 36 }).notNull(),
   course_id: char("course_id", { length: 36 }).notNull(),
-  enrolled_at: timestamp("enrolled_at").defaultNow(),
-  status: EnrollmentStatus,
-});
+  enrolled_at: timestamp("enrolled_at").notNull().defaultNow(),
+  status: EnrollmentStatus.notNull().default("active"),
+}, (table) => ({
+  userCourseUnique: uniqueIndex("enrollments_user_course_unique").on(table.user_id, table.course_id),
+  userIdx: index("enrollments_user_id_idx").on(table.user_id),
+  courseIdx: index("enrollments_course_id_idx").on(table.course_id),
+}));
 
 export const payments = mysqlTable("payments", {
   id: char("id", { length: 36 }).primaryKey(),
@@ -96,8 +102,15 @@ export const payments = mysqlTable("payments", {
   course_id: char("course_id", { length: 36 }).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }),
   provider: varchar("provider", { length: 50 }),
-  status: PaymentStatus,
+  dodo_order_id: varchar("dodo_order_id", { length: 100 }),
+  dodo_payment_id: varchar("dodo_payment_id", { length: 100 }).unique(),
+  status: PaymentStatus.notNull().default("pending"),
+  enrollment_created: boolean("enrollment_created").notNull().default(false),
+  enrollment_retry_count: int("enrollment_retry_count").notNull().default(0),
+  next_enrollment_retry_at: timestamp("next_enrollment_retry_at"),
+  last_enrollment_error: text("last_enrollment_error"),
   created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
 });
 
 export const lessons = mysqlTable("lessons", {
@@ -138,6 +151,19 @@ export const cart_items = mysqlTable("cart_items", {
   pk: primaryKey({ columns: [table.user_id, table.course_id] }),
 }));
 
+export const resources = mysqlTable("resources", {
+  id: char("id", { length: 36 }).primaryKey(),
+  course_id: char("course_id", { length: 36 }).notNull(),
+  uploader_id: char("uploader_id", { length: 36 }).notNull(),
+  file_name: varchar("file_name", { length: 255 }).notNull(),
+  file_type: varchar("file_type", { length: 150 }).notNull(),
+  file_size: int("file_size").notNull(),
+  s3_key: varchar("s3_key", { length: 512 }).notNull().unique(),
+  s3_bucket: varchar("s3_bucket", { length: 255 }).notNull(),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
 export const sessions = mysqlTable("sessions", {
   id: char("id", { length: 36 }).primaryKey(),
   user_id: char("user_id", { length: 36 }).notNull(),
@@ -157,6 +183,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   progress: many(lesson_progress),
   certificates: many(certificates),
   cartItems: many(cart_items),
+  uploadedResources: many(resources),
   sessions: many(sessions),
 }));
 
@@ -173,6 +200,7 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   progress: many(lesson_progress),
   certificates: many(certificates),
   cartItems: many(cart_items),
+  resources: many(resources),
 }));
 
 export const lessonsRelations = relations(lessons, ({ one, many }) => ({
@@ -269,6 +297,17 @@ export const cartItemsRelations = relations(cart_items, ({ one }) => ({
   course: one(courses, {
     fields: [cart_items.course_id],
     references: [courses.id],
+  }),
+}));
+
+export const resourcesRelations = relations(resources, ({ one }) => ({
+  course: one(courses, {
+    fields: [resources.course_id],
+    references: [courses.id],
+  }),
+  uploader: one(users, {
+    fields: [resources.uploader_id],
+    references: [users.id],
   }),
 }));
 

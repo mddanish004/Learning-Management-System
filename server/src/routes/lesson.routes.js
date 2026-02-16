@@ -7,11 +7,17 @@ import {
   deleteLesson,
   reorderLessons,
 } from '../controllers/lesson.controller.js';
-import { authenticateJWT, authorizeRole, validateCourseOwnership, ROLES } from '../middlewares/index.js';
+import {
+  authenticateJWT,
+  authorizeRole,
+  validateCourseOwnership,
+  requireCourseEnrollment,
+  ROLES,
+} from '../middlewares/index.js';
 
 const router = Router({ mergeParams: true });
 
-router.get('/', getLessons);
+router.get('/', authenticateJWT, requireCourseEnrollment('courseId'), getLessons);
 
 router.post(
   '/',
@@ -29,7 +35,7 @@ router.put(
   reorderLessons
 );
 
-router.get('/:lessonId', getLessonById);
+router.get('/:lessonId', authenticateJWT, requireCourseEnrollment('courseId'), getLessonById);
 
 router.put(
   '/:lessonId',

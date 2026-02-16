@@ -9,3 +9,4 @@ export {
   validateQuizOwnership,
   validateLessonOwnership
 } from './validateOwnership.js';
+export { requireCourseEnrollment, requireLessonEnrollment } from './verifyEnrollment.js';

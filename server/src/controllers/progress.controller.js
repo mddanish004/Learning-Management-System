@@ -1,10 +1,10 @@
 import { db } from '../db/db.js';
 import { lessons, lesson_progress, enrollments, courses } from '../db/schema.js';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, inArray, isNull, sql } from 'drizzle-orm';
 
 export async function markLessonComplete(req, res) {
   const { id: lessonId } = req.params;
-  const userId = req.user.userId;
+  const userId = req.user.sub;
 
   const lesson = await db.query.lessons.findFirst({
     where: eq(lessons.id, lessonId),
@@ -28,7 +28,7 @@ export async function markLessonComplete(req, res) {
     where: and(
       eq(enrollments.user_id, userId),
       eq(enrollments.course_id, courseId),
-      eq(enrollments.status, 'active')
+      inArray(enrollments.status, ['active', 'completed'])
     ),
   });
 
@@ -83,7 +83,7 @@ export async function markLessonComplete(req, res) {
 
 export async function getCourseProgress(req, res) {
   const { courseId } = req.params;
-  const userId = req.user.userId;
+  const userId = req.user.sub;
 
   const course = await db.query.courses.findFirst({
     where: and(eq(courses.id, courseId), isNull(courses.deleted_at)),
