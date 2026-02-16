@@ -139,9 +139,19 @@ export const certificates = mysqlTable("certificates", {
   id: char("id", { length: 36 }).primaryKey(),
   user_id: char("user_id", { length: 36 }).notNull(),
   course_id: char("course_id", { length: 36 }).notNull(),
-  certificate_url: text("certificate_url"),
+  certificate_url: text("certificate_url").notNull(),
+  file_name: varchar("file_name", { length: 255 }).notNull(),
+  file_type: varchar("file_type", { length: 150 }).notNull(),
+  file_size: int("file_size").notNull(),
+  s3_key: varchar("s3_key", { length: 512 }).notNull(),
+  s3_bucket: varchar("s3_bucket", { length: 255 }).notNull(),
   issued_at: timestamp("issued_at").defaultNow(),
-});
+}, (table) => ({
+  userCourseUnique: uniqueIndex("certificates_user_course_unique").on(table.user_id, table.course_id),
+  s3KeyUnique: uniqueIndex("certificates_s3_key_unique").on(table.s3_key),
+  userIdx: index("certificates_user_id_idx").on(table.user_id),
+  courseIdx: index("certificates_course_id_idx").on(table.course_id),
+}));
 
 export const cart_items = mysqlTable("cart_items", {
   user_id: char("user_id", { length: 36 }).notNull(),

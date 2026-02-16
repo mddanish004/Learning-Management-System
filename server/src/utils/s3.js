@@ -62,6 +62,10 @@ export function buildResourceS3Key(courseId, resourceId, fileName) {
   return `courses/${courseId}/resources/${resourceId}/${Date.now()}-${safeFileName}`;
 }
 
+export function buildCertificateS3Key(courseId, userId, certificateId) {
+  return `courses/${courseId}/certificates/${userId}/${certificateId}.pdf`;
+}
+
 export async function createSignedUploadUrl({
   bucket,
   key,
@@ -78,6 +82,24 @@ export async function createSignedUploadUrl({
 
   const url = await getSignedUrl(s3Client, command, { expiresIn });
   return { url, expiresIn };
+}
+
+export async function uploadS3Object({
+  bucket,
+  key,
+  body,
+  contentType,
+}) {
+  ensureS3Ready();
+
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  });
+
+  await s3Client.send(command);
 }
 
 export async function createSignedDownloadUrl({

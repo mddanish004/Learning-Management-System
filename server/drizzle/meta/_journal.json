@@ -8,6 +8,13 @@
       "when": 1739734500000,
       "tag": "0003_enrollments_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1760000000000,
+      "tag": "0004_certificates_metadata",
+      "breakpoints": true
     }
   ]
 }
