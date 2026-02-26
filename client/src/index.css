@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  --color-cream: #F5F0E8;
+  --color-coral: #FF6B6B;
+  --color-coral-dark: #E85555;
+  --color-ocean: #88AAEE;
+  --color-ocean-dark: #6B8FDD;
+  --color-sunshine: #FFD43B;
+  --color-mint: #A7F3D0;
+  --color-lavender: #DDD6FE;
+  --color-blush: #FBCFE8;
+  --color-peach: #FED7AA;
+  --color-skyblue: #BAE6FD;
+  --color-charcoal: #1A1A2E;
+
+  --shadow-brutal-sm: 2px 2px 0 #000;
+  --shadow-brutal: 4px 4px 0 #000;
+  --shadow-brutal-md: 6px 6px 0 #000;
+  --shadow-brutal-lg: 8px 8px 0 #000;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-cream);
+  color: #000;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
