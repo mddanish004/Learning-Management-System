@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { authenticateJWT, validateRequest } from '../middlewares/index.js';
-import { createDodoOrder, handleDodoWebhook } from '../controllers/payment.controller.js';
+import { createDodoOrder, handleDodoWebhook, verifyPaymentStatus } from '../controllers/payment.controller.js';
 import { validationSchemas } from '../validators/schemas.js';
 
 const router = Router();
@@ -12,6 +12,13 @@ router.post(
   authenticateJWT,
   createDodoOrder
 );
+
+router.get(
+  '/verify/:courseId',
+  authenticateJWT,
+  verifyPaymentStatus
+);
+
 router.post(
   '/webhook',
   express.raw({ type: 'application/json' }),

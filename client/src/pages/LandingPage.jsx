@@ -1,6 +1,6 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  GraduationCap,
   BookOpen,
   Play,
   Brain,
@@ -14,73 +14,12 @@ import {
   Sparkles,
   Users,
   Star,
+  School,
+  GraduationCap,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import CourseCard from '../components/CourseCard'
-
-const MOCK_COURSES = [
-  {
-    id: 1,
-    title: 'Introduction to Web Development',
-    description:
-      'Learn HTML, CSS, and JavaScript from scratch. Build real-world projects and launch your career in tech.',
-    instructor: { name: 'Sarah Johnson' },
-    price: '49.99',
-    is_free: false,
-    is_published: true,
-  },
-  {
-    id: 2,
-    title: 'Python for Data Science',
-    description:
-      'Master Python, NumPy, Pandas, and data visualization techniques. Perfect for aspiring data scientists.',
-    instructor: { name: 'Michael Chen' },
-    price: '0',
-    is_free: true,
-    is_published: true,
-  },
-  {
-    id: 3,
-    title: 'UI/UX Design Fundamentals',
-    description:
-      'Design beautiful user interfaces and create amazing user experiences using modern design tools.',
-    instructor: { name: 'Emily Rodriguez' },
-    price: '39.99',
-    is_free: false,
-    is_published: true,
-  },
-  {
-    id: 4,
-    title: 'Advanced React Patterns',
-    description:
-      'Take your React skills to the next level with advanced component patterns and architecture.',
-    instructor: { name: 'David Kim' },
-    price: '59.99',
-    is_free: false,
-    is_published: true,
-  },
-  {
-    id: 5,
-    title: 'Machine Learning Basics',
-    description:
-      'Understand the fundamentals of ML algorithms and build your first predictive models from scratch.',
-    instructor: { name: 'Alex Turner' },
-    price: '0',
-    is_free: true,
-    is_published: true,
-  },
-  {
-    id: 6,
-    title: 'Node.js Backend Mastery',
-    description:
-      'Build scalable server-side applications with Node.js, Express, and modern database technologies.',
-    instructor: { name: 'Lisa Wang' },
-    price: '44.99',
-    is_free: false,
-    is_published: true,
-  },
-]
 
 const MARQUEE_ITEMS = [
   '🎓 START LEARNING TODAY',
@@ -121,7 +60,6 @@ const FEATURES = [
     description:
       'Earn verified certificates upon course completion to showcase your professional skills.',
     color: 'bg-sunshine',
-    planned: true,
   },
 ]
 
@@ -155,6 +93,26 @@ const STEPS = [
 const marqueeText = MARQUEE_ITEMS.join('  \u00A0•\u00A0  ') + '  \u00A0•\u00A0  '
 
 function LandingPage() {
+  const [featuredCourses, setFeaturedCourses] = useState([])
+  const [coursesLoading, setCoursesLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadCourses() {
+      try {
+        const res = await fetch('/api/v1/courses?limit=6&is_published=true&sort_by=created_at&sort_order=desc')
+        if (res.ok) {
+          const data = await res.json()
+          setFeaturedCourses(data.courses || [])
+        }
+      } catch {
+        setFeaturedCourses([])
+      } finally {
+        setCoursesLoading(false)
+      }
+    }
+    loadCourses()
+  }, [])
+
   return (
     <div className="min-h-screen bg-cream">
       <Navbar />
@@ -172,7 +130,7 @@ function LandingPage() {
             <div>
               <div className="inline-flex items-center gap-2 bg-sunshine/40 border-2 border-black rounded-full px-4 py-1.5 mb-6 shadow-brutal-sm">
                 <Sparkles className="w-4 h-4" />
-                <span className="font-heading font-bold text-sm">#1 Open Learning Platform</span>
+                <span className="font-heading font-bold text-sm">Open Learning Platform</span>
               </div>
               <h1 className="font-heading font-bold text-4xl md:text-5xl lg:text-6xl leading-tight mb-6">
                 Learn Without Limits, Grow Without{' '}
@@ -183,7 +141,7 @@ function LandingPage() {
               <p className="text-lg text-gray-700 mb-8 max-w-xl leading-relaxed">
                 Master new skills with expert-led video courses, AI-powered quizzes, and
                 personalized progress tracking. Whether you&apos;re a learner or an instructor,
-                BrightLearn is your launchpad.
+                Penta Academy is your launchpad.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
@@ -211,8 +169,8 @@ function LandingPage() {
                     <Play className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <p className="font-heading font-bold text-lg">Web Development</p>
-                    <p className="text-sm text-gray-500">12 lessons · Sarah Johnson</p>
+                    <p className="font-heading font-bold text-lg">Learn at your pace</p>
+                    <p className="text-sm text-gray-500">Structured paths and clear milestones</p>
                   </div>
                 </div>
 
@@ -226,35 +184,21 @@ function LandingPage() {
                   </div>
                 </div>
 
-                <div className="bg-lavender border-2 border-black rounded-xl p-4 mb-5">
+                <div className="bg-lavender border-2 border-black rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Brain className="w-5 h-5" />
                     <span className="font-heading font-bold text-sm">AI Quiz Ready</span>
                   </div>
                   <p className="text-sm text-gray-700">
-                    5 questions generated from your last lesson
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    {['bg-coral', 'bg-ocean', 'bg-sunshine', 'bg-mint'].map((color) => (
-                      <div
-                        key={color}
-                        className={`w-8 h-8 ${color} border-2 border-black rounded-full`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-bold">2,400+</span> students enrolled
+                    Questions generated from the material you add
                   </p>
                 </div>
               </div>
 
               <div className="absolute top-4 -left-8 bg-sunshine border-2 border-black rounded-lg px-3 py-1.5 shadow-brutal-sm rotate-[-6deg] z-20">
                 <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-black" />
-                  <span className="font-heading font-bold text-sm">4.9 Rating</span>
+                  <Sparkles className="w-4 h-4" />
+                  <span className="font-heading font-bold text-sm">All in one place</span>
                 </div>
               </div>
             </div>
@@ -265,17 +209,36 @@ function LandingPage() {
       <section className="bg-charcoal border-y-2 border-black py-10 px-4">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
           {[
-            { value: '1,200+', label: 'Courses', icon: BookOpen },
-            { value: '15,000+', label: 'Students', icon: Users },
-            { value: '500+', label: 'Instructors', icon: GraduationCap },
-            { value: '98%', label: 'Satisfaction', icon: Star },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center text-white">
-              <stat.icon className="w-7 h-7 mx-auto mb-2 text-sunshine" />
-              <p className="font-heading font-bold text-2xl md:text-3xl">{stat.value}</p>
-              <p className="text-gray-400 text-sm mt-1">{stat.label}</p>
+            {
+              title: 'Learn anywhere',
+              subtitle: 'Access courses whenever it fits your day',
+              icon: BookOpen,
+            },
+            {
+              title: 'Learn together',
+              subtitle: 'A space for learners and instructors alike',
+              icon: Users,
+            },
+            {
+              title: 'Expert-led',
+              subtitle: 'Practical lessons from people who teach',
+              icon: School,
+            },
+            {
+              title: 'Built for growth',
+              subtitle: 'Progress tracking that keeps you moving',
+              icon: Star,
+            },
+          ].map(({ title, subtitle, icon }) => {
+            const Icon = icon
+            return (
+            <div key={title} className="text-center text-white">
+              <Icon className="w-7 h-7 mx-auto mb-2 text-sunshine" />
+              <p className="font-heading font-bold text-2xl md:text-3xl">{title}</p>
+              <p className="text-gray-400 text-sm mt-1">{subtitle}</p>
             </div>
-          ))}
+            )
+          })}
         </div>
       </section>
 
@@ -284,7 +247,7 @@ function LandingPage() {
           <div className="text-center mb-14">
             <h2 className="font-heading font-bold text-3xl md:text-4xl mb-4">Choose Your Path</h2>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              BrightLearn supports two journeys. Pick yours and get started in minutes.
+              Penta Academy supports two journeys. Pick yours and get started in minutes.
             </p>
           </div>
 
@@ -357,7 +320,7 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="font-heading font-bold text-3xl md:text-4xl mb-4">
-              Why Choose BrightLearn?
+              Why Choose Penta Academy?
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Everything you need for an exceptional learning experience, all in one platform.
@@ -368,13 +331,8 @@ function LandingPage() {
             {FEATURES.map((feature) => (
               <div
                 key={feature.title}
-                className="bg-white border-2 border-black shadow-brutal rounded-xl p-6 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all duration-200 relative"
+                className="bg-white border-2 border-black shadow-brutal rounded-xl p-6 hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all duration-200"
               >
-                {feature.planned && (
-                  <span className="absolute -top-2.5 -right-2.5 bg-coral text-white text-[10px] font-bold px-2 py-0.5 border-2 border-black rounded-md rotate-3">
-                    PLANNED
-                  </span>
-                )}
                 <div
                   className={`w-14 h-14 ${feature.color} border-2 border-black rounded-xl shadow-brutal-sm flex items-center justify-center mb-5`}
                 >
@@ -433,9 +391,29 @@ function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {MOCK_COURSES.map((course, i) => (
-              <CourseCard key={course.id} course={course} index={i} />
-            ))}
+            {coursesLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white border-2 border-black rounded-xl overflow-hidden">
+                  <div className="bg-gray-100 border-b-2 border-black p-8 flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg animate-pulse" />
+                  </div>
+                  <div className="p-5 space-y-3">
+                    <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-5 w-3/4 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-10 w-full bg-gray-200 rounded-lg animate-pulse mt-2" />
+                  </div>
+                </div>
+              ))
+            ) : featuredCourses.length > 0 ? (
+              featuredCourses.map((course, i) => (
+                <CourseCard key={course.id} course={course} index={i} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-gray-500 font-heading font-bold">No courses available yet. Check back soon!</p>
+              </div>
+            )}
           </div>
 
           <div className="text-center">
@@ -458,7 +436,7 @@ function LandingPage() {
             Ready to Start Your Learning Journey?
           </h2>
           <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto leading-relaxed">
-            Join thousands of learners and instructors on BrightLearn. Your next skill is just a
+            Join thousands of learners and instructors on Penta Academy. Your next skill is just a
             click away.
           </p>
           <div className="flex flex-wrap justify-center gap-4">

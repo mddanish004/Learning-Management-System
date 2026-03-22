@@ -198,9 +198,37 @@ async function persistWebhookPayment(event, status) {
   });
 }
 
+async function getOrCreateDodoProduct(dodoClient, course) {
+  if (course.dodo_product_id) {
+    return course.dodo_product_id;
+  }
+
+  const priceInCents = Math.round(parseFloat(course.price) * 100);
+
+  const product = await dodoClient.products.create({
+    name: course.title,
+    description: course.description || undefined,
+    price: {
+      type: 'one_time_price',
+      currency: 'USD',
+      price: priceInCents,
+      discount: 0,
+      purchasing_power_parity: false,
+    },
+    tax_category: 'digital_products',
+  });
+
+  await db
+    .update(courses)
+    .set({ dodo_product_id: product.product_id, updated_at: new Date() })
+    .where(eq(courses.id, course.id));
+
+  return product.product_id;
+}
+
 export async function createDodoOrder(req, res) {
   const userId = req.user?.sub;
-  const { course_id: courseId, dodo_product_id: dodoProductId, quantity = 1, return_url: returnUrl } = req.body || {};
+  const { course_id: courseId, quantity = 1, return_url: returnUrl } = req.body || {};
   const parsedQuantity = Number(quantity);
 
   if (!userId) {
@@ -208,10 +236,9 @@ export async function createDodoOrder(req, res) {
   }
 
   const normalizedCourseId = asNonEmptyString(courseId);
-  const normalizedProductId = asNonEmptyString(dodoProductId);
 
-  if (!normalizedCourseId || !normalizedProductId) {
-    return res.status(400).json({ error: 'course_id and dodo_product_id are required' });
+  if (!normalizedCourseId) {
+    return res.status(400).json({ error: 'course_id is required' });
   }
 
   if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
@@ -253,8 +280,10 @@ export async function createDodoOrder(req, res) {
   try {
     const dodoClient = getDodoPaymentsClient();
 
+    const dodoProductId = await getOrCreateDodoProduct(dodoClient, course);
+
     const checkoutSession = await dodoClient.checkoutSessions.create({
-      product_cart: [{ product_id: normalizedProductId, quantity: parsedQuantity }],
+      product_cart: [{ product_id: dodoProductId, quantity: parsedQuantity }],
       customer: {
         email: user.email,
         name: user.name || undefined,
@@ -342,4 +371,105 @@ export async function handleDodoWebhook(req, res) {
   }
 
   return res.status(200).json({ received: true });
+}
+
+export async function verifyPaymentStatus(req, res) {
+  const userId = req.user?.sub;
+  const { courseId } = req.params;
+
+  if (!userId || !courseId) {
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+
+  const existingEnrollment = await db.query.enrollments.findFirst({
+    where: and(
+      eq(enrollments.user_id, userId),
+      eq(enrollments.course_id, courseId),
+      inArray(enrollments.status, ['active', 'completed'])
+    ),
+  });
+
+  if (existingEnrollment) {
+    return res.json({ enrolled: true, status: 'enrolled' });
+  }
+
+  const paymentRecord = await db.query.payments.findFirst({
+    where: and(
+      eq(payments.user_id, userId),
+      eq(payments.course_id, courseId),
+    ),
+    orderBy: (p, { desc }) => [desc(p.created_at)],
+  });
+
+  if (!paymentRecord) {
+    return res.json({ enrolled: false, status: 'no_payment' });
+  }
+
+  if (paymentRecord.enrollment_created) {
+    return res.json({ enrolled: true, status: 'enrolled' });
+  }
+
+  if (paymentRecord.status === 'success') {
+    await triggerEnrollmentRetryForPayment(paymentRecord.id);
+    const recheckEnrollment = await db.query.enrollments.findFirst({
+      where: and(
+        eq(enrollments.user_id, userId),
+        eq(enrollments.course_id, courseId),
+        inArray(enrollments.status, ['active', 'completed'])
+      ),
+    });
+    if (recheckEnrollment) {
+      return res.json({ enrolled: true, status: 'enrolled' });
+    }
+    return res.json({ enrolled: false, status: 'processing' });
+  }
+
+  if (paymentRecord.status !== 'pending' && paymentRecord.status !== 'processing') {
+    return res.json({ enrolled: false, status: paymentRecord.status });
+  }
+
+  if (!paymentRecord.dodo_order_id) {
+    return res.json({ enrolled: false, status: 'processing' });
+  }
+
+  try {
+    const dodoClient = getDodoPaymentsClient();
+    const session = await dodoClient.checkoutSessions.retrieve(paymentRecord.dodo_order_id);
+
+    if (session.payment_status === 'succeeded') {
+      await db
+        .update(payments)
+        .set({
+          status: 'success',
+          dodo_payment_id: session.payment_id || paymentRecord.dodo_payment_id,
+          updated_at: new Date(),
+        })
+        .where(eq(payments.id, paymentRecord.id));
+
+      await triggerEnrollmentRetryForPayment(paymentRecord.id);
+
+      const finalCheck = await db.query.enrollments.findFirst({
+        where: and(
+          eq(enrollments.user_id, userId),
+          eq(enrollments.course_id, courseId),
+          inArray(enrollments.status, ['active', 'completed'])
+        ),
+      });
+
+      return res.json({ enrolled: !!finalCheck, status: finalCheck ? 'enrolled' : 'processing' });
+    }
+
+    if (session.payment_status === 'failed' || session.payment_status === 'cancelled') {
+      const mappedStatus = STATUS_BY_DODO_STATUS[session.payment_status] || session.payment_status;
+      await db
+        .update(payments)
+        .set({ status: mappedStatus, updated_at: new Date() })
+        .where(eq(payments.id, paymentRecord.id));
+      return res.json({ enrolled: false, status: mappedStatus });
+    }
+
+    return res.json({ enrolled: false, status: 'processing' });
+  } catch {
+    return res.json({ enrolled: false, status: 'processing' });
+  }
 }

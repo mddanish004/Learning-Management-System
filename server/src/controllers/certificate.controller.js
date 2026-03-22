@@ -195,6 +195,24 @@ export async function generateCertificate(req, res) {
   });
 }
 
+export async function getCertificateBycourse(req, res) {
+  const { courseId } = req.params;
+  const userId = req.user.sub;
+
+  const certificate = await db.query.certificates.findFirst({
+    where: and(
+      eq(certificates.user_id, userId),
+      eq(certificates.course_id, courseId)
+    ),
+  });
+
+  if (!certificate) {
+    return res.status(404).json({ error: 'No certificate found for this course' });
+  }
+
+  res.json({ certificate });
+}
+
 export async function generateCertificateDownloadUrl(req, res) {
   if (!isS3Configured()) {
     return res.status(500).json({ error: 'S3 is not configured' });

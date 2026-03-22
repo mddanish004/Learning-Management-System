@@ -1,4 +1,6 @@
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
@@ -22,6 +24,10 @@ import {
 import { logError } from './utils/logger.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const isProd = process.env.NODE_ENV === "production";
 
 const app = express();
 const port = process.env.PORT;
@@ -47,9 +53,11 @@ app.use(
   })
 );
 
-app.get("/", (req, res) => {
-  res.redirect("/api-docs");
-});
+if (!isProd) {
+  app.get("/", (req, res) => {
+    res.redirect("/api-docs");
+  });
+}
 
 app.use("/api/auth", authRoutes);
 app.use("/api/v1/courses", courseRoutes);
@@ -59,6 +67,25 @@ app.use("/api/v1/resources", resourceRoutes);
 app.use("/api/v1/enrollments", enrollmentRoutes);
 app.use("/api/v1/instructor", instructorRoutes);
 app.use("/api/v1/certificates", certificateRoutes);
+
+if (isProd) {
+  const clientDist = path.join(__dirname, "../../client/dist");
+  app.use(express.static(clientDist));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      next();
+      return;
+    }
+    if (req.path.startsWith("/api")) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(clientDist, "index.html"), (err) => {
+      if (err) next(err);
+    });
+  });
+}
+
 app.use(notFoundHandler);
 app.use(errorHandler);
 

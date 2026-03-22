@@ -1,4 +1,17 @@
+import { existsSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import PDFDocument from 'pdfkit';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const LOGO_PATH = join(__dirname, '../../assets/penta-academy-logo.png');
+
+const CREAM = '#F5F0E8';
+const CORAL = '#FF6B6B';
+const CHARCOAL = '#1A1A2E';
+const SUNSHINE = '#FFD43B';
+const MINT = '#A7F3D0';
+const BLACK = '#000000';
 
 function formatIssueDate(issuedAt) {
   return new Intl.DateTimeFormat('en-US', {
@@ -28,7 +41,7 @@ export async function renderCertificatePdf({
       margins: { top: 0, right: 0, bottom: 0, left: 0 },
       info: {
         Title: 'Course Completion Certificate',
-        Author: 'LMS',
+        Author: 'Penta Academy',
       },
     });
     const chunks = [];
@@ -43,60 +56,114 @@ export async function renderCertificatePdf({
     const safeLearnerName = truncateText(learnerName, 80) || 'Learner';
     const safeCourseTitle = truncateText(courseTitle, 120) || 'Course';
 
-    doc.rect(0, 0, pageWidth, pageHeight).fill('#f8fafc');
-    doc.rect(36, 36, pageWidth - 72, pageHeight - 72).lineWidth(2).strokeColor('#0f172a').stroke();
-    doc.rect(56, 56, pageWidth - 112, pageHeight - 112).lineWidth(1).strokeColor('#cbd5e1').stroke();
+    const outer = 36;
+    const inner = 48;
+    const headerH = 102;
 
-    doc.rect(56, 56, pageWidth - 112, 95).fill('#0f172a');
-    doc.fillColor('#f8fafc');
-    doc.font('Helvetica-Bold').fontSize(14).text('LEARNING MANAGEMENT SYSTEM', 56, 92, {
-      width: pageWidth - 112,
+    doc.rect(0, 0, pageWidth, pageHeight).fill(CREAM);
+
+    doc
+      .rect(outer, outer, pageWidth - outer * 2, pageHeight - outer * 2)
+      .lineWidth(3)
+      .strokeColor(BLACK)
+      .stroke();
+
+    doc
+      .rect(inner, inner, pageWidth - inner * 2, headerH)
+      .fill(CORAL);
+
+    doc
+      .moveTo(inner, inner + headerH)
+      .lineTo(pageWidth - inner, inner + headerH)
+      .lineWidth(2)
+      .strokeColor(BLACK)
+      .stroke();
+
+    doc.fillColor('#ffffff');
+    doc.font('Helvetica-Bold').fontSize(13).text('PENTA ACADEMY', inner, inner + 38, {
+      width: pageWidth - inner * 2,
       align: 'center',
     });
 
-    doc.fillColor('#334155');
-    doc.font('Helvetica').fontSize(17).text('Certificate of Completion', 56, 205, {
-      width: pageWidth - 112,
+    doc.fillColor(CHARCOAL);
+    doc.font('Helvetica-Bold').fontSize(20).text('Certificate of Completion', inner, inner + headerH + 36, {
+      width: pageWidth - inner * 2,
       align: 'center',
     });
 
-    doc.fillColor('#0f172a');
-    doc.font('Helvetica-Bold').fontSize(41).text(safeLearnerName, 90, 255, {
-      width: pageWidth - 180,
+    doc.fillColor(BLACK);
+    doc.font('Helvetica-Bold').fontSize(38).text(safeLearnerName, inner + 42, inner + headerH + 92, {
+      width: pageWidth - inner * 2 - 84,
       align: 'center',
     });
 
-    doc.fillColor('#475569');
-    doc.font('Helvetica').fontSize(15).text('has successfully completed', 56, 338, {
-      width: pageWidth - 112,
+    doc.fillColor('#374151');
+    doc.font('Helvetica').fontSize(14).text('has successfully completed', inner, inner + headerH + 168, {
+      width: pageWidth - inner * 2,
       align: 'center',
     });
 
-    doc.fillColor('#0f172a');
-    doc.font('Helvetica-Bold').fontSize(28).text(safeCourseTitle, 90, 372, {
-      width: pageWidth - 180,
+    doc.fillColor(BLACK);
+    doc.font('Helvetica-Bold').fontSize(24).text(safeCourseTitle, inner + 42, inner + headerH + 200, {
+      width: pageWidth - inner * 2 - 84,
       align: 'center',
     });
 
-    doc.moveTo(170, 455).lineTo(pageWidth - 170, 455).lineWidth(1).strokeColor('#94a3b8').stroke();
+    doc
+      .rect(inner + 100, inner + headerH + 290, pageWidth - inner * 2 - 200, 6)
+      .fill(MINT);
 
-    doc.fillColor('#475569');
-    doc.font('Helvetica').fontSize(12).text(`Issued on ${issuedText}`, 90, 478, {
-      width: pageWidth - 180,
+    doc.fillColor('#4b5563');
+    doc.font('Helvetica').fontSize(11).text(`Issued on ${issuedText}`, inner, inner + headerH + 318, {
+      width: pageWidth - inner * 2,
       align: 'center',
     });
-    doc.text(`Certificate ID ${certificateId}`, 90, 497, {
-      width: pageWidth - 180,
+    doc.text(`Certificate ID ${certificateId}`, inner, inner + headerH + 336, {
+      width: pageWidth - inner * 2,
       align: 'center',
     });
 
-    doc.circle(pageWidth - 120, pageHeight - 120, 46).lineWidth(2).strokeColor('#0f172a').stroke();
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#0f172a').text('LMS', pageWidth - 136, pageHeight - 129, {
-      width: 32,
+    const stampW = 108;
+    const stampH = 118;
+    const stampX = pageWidth - inner - stampW;
+    const stampY = pageHeight - inner - stampH;
+
+    doc.rect(stampX, stampY, stampW, stampH).fill(SUNSHINE);
+    doc
+      .rect(stampX, stampY, stampW, stampH)
+      .lineWidth(2)
+      .strokeColor(BLACK)
+      .stroke();
+
+    const logoSize = 52;
+    const logoX = stampX + (stampW - logoSize) / 2;
+    const logoY = stampY + 14;
+
+    if (existsSync(LOGO_PATH)) {
+      try {
+        doc.image(LOGO_PATH, logoX, logoY, { width: logoSize, height: logoSize });
+      } catch {
+        doc.fillColor(BLACK);
+        doc.font('Helvetica-Bold').fontSize(11).text('PA', stampX + 40, stampY + 44, {
+          width: 32,
+          align: 'center',
+        });
+      }
+    } else {
+      doc.fillColor(BLACK);
+      doc.font('Helvetica-Bold').fontSize(11).text('PA', stampX + 40, stampY + 44, {
+        width: 32,
+        align: 'center',
+      });
+    }
+
+    doc.fillColor(CHARCOAL);
+    doc.font('Helvetica-Bold').fontSize(9).text('VERIFIED', stampX, stampY + logoSize + 22, {
+      width: stampW,
       align: 'center',
     });
-    doc.font('Helvetica').fontSize(8).fillColor('#64748b').text('VERIFIED', pageWidth - 144, pageHeight - 112, {
-      width: 48,
+    doc.font('Helvetica').fontSize(7).fillColor('#4b5563').text('Penta Academy', stampX, stampY + logoSize + 36, {
+      width: stampW,
       align: 'center',
     });
 

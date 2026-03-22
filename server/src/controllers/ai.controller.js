@@ -1,6 +1,6 @@
 import { db } from "../db/db.js";
-import { ai_quiz_cache } from "../db/schema.js";
-import { eq } from "drizzle-orm";
+import { ai_quiz_cache, lessons, courses, resources, quizzes, quiz_questions } from "../db/schema.js";
+import { eq, and, isNull } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import { createHash } from "crypto";
 
@@ -240,11 +240,118 @@ async function callHuggingFace({ prompt, timeoutMs }) {
   }
 }
 
+async function fetchYouTubeDescription(videoId) {
+  if (!videoId) return null;
+
+  const controller = new AbortController();
+  const timeoutMs = Number(process.env.YT_DESCRIPTION_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const html = await response.text();
+    const match =
+      html.match(
+        /<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]*content=["']([^"']*)["'][^>]*>/i
+      ) || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]*(?:name|property)=["']description["'][^>]*>/i);
+
+    if (!match || !match[1]) {
+      return null;
+    }
+
+    const text = match[1].trim();
+    return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function getLessonTextFromLesson(lessonId) {
+  const lesson = await db.query.lessons.findFirst({
+    where: eq(lessons.id, lessonId),
+  });
+
+  if (!lesson) {
+    return null;
+  }
+
+  let combinedText = "";
+
+  if (lesson.youtube_video_id) {
+    const description = await fetchYouTubeDescription(lesson.youtube_video_id);
+    if (description) {
+      combinedText = description;
+    }
+  }
+
+  if (!combinedText && typeof lesson.content_text === "string" && lesson.content_text.trim().length > 0) {
+    combinedText = lesson.content_text;
+  }
+
+  const trimmed = combinedText.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export async function generateQuiz(req, res) {
-  const { lesson_text: lessonText, num_questions: numQuestionsRaw } = req.body;
+  const { lesson_text: lessonTextRaw, lesson_id: lessonId, course_id: courseId, num_questions: numQuestionsRaw } = req.body;
+
+  let lessonText = lessonTextRaw;
+
+  if (courseId) {
+    const course = await db.query.courses.findFirst({
+      where: and(eq(courses.id, courseId), isNull(courses.deleted_at)),
+    });
+
+    if (course) {
+      const resourceRows = await db.query.resources.findMany({
+        where: eq(resources.course_id, courseId),
+        orderBy: (r, { asc: ascOrder }) => [ascOrder(r.created_at)],
+      });
+
+      const parts = [];
+
+      if (course.title) {
+        parts.push(`Course title: ${course.title}`);
+      }
+
+      if (typeof course.description === "string" && course.description.trim().length > 0) {
+        parts.push(`Course description: ${course.description.trim()}`);
+      }
+
+      if (resourceRows.length > 0) {
+        parts.push("Course resources:");
+        resourceRows.forEach((resource, index) => {
+          parts.push(`${index + 1}. ${resource.file_name}`);
+        });
+      }
+
+      const combined = parts.join("\n").trim();
+      if (combined.length > 0) {
+        lessonText = combined;
+      }
+    }
+  }
+
+  if (lessonId) {
+    const derivedText = await getLessonTextFromLesson(lessonId);
+    if (derivedText) {
+      lessonText = derivedText;
+    }
+  }
 
   if (!lessonText || typeof lessonText !== "string" || lessonText.trim().length === 0) {
-    return res.status(400).json({ error: "lesson_text is required" });
+    lessonText =
+      "This lesson introduces an important concept and explains the key ideas in a structured way.";
   }
 
   const parsedNum = Number.isFinite(Number(numQuestionsRaw)) ? Number(numQuestionsRaw) : DEFAULT_NUM_QUESTIONS;
@@ -321,4 +428,69 @@ export async function generateQuiz(req, res) {
       error: error?.message ?? "Unknown AI error",
     });
   }
+}
+
+export async function saveQuiz(req, res) {
+  const { course_id: courseId, quiz } = req.body;
+
+  const course = await db.query.courses.findFirst({
+    where: and(eq(courses.id, courseId), isNull(courses.deleted_at)),
+  });
+
+  if (!course) {
+    return res.status(404).json({ error: "Course not found" });
+  }
+
+  if (req.user.role !== "admin" && course.instructor_id !== req.user.sub) {
+    return res.status(403).json({ error: "You can only save quizzes for your own courses" });
+  }
+
+  const existing = await db.query.quizzes.findFirst({
+    where: eq(quizzes.course_id, courseId),
+  });
+
+  if (existing) {
+    await db.delete(quiz_questions).where(eq(quiz_questions.quiz_id, existing.id));
+    await db.delete(quizzes).where(eq(quizzes.id, existing.id));
+  }
+
+  const quizId = uuid();
+  await db.insert(quizzes).values({
+    id: quizId,
+    course_id: courseId,
+    generated_by: "llm",
+  });
+
+  const questionRows = quiz.map((item) => ({
+    id: uuid(),
+    quiz_id: quizId,
+    question: item.question,
+    options: JSON.stringify(item.options),
+    answer: item.answer,
+  }));
+
+  await db.insert(quiz_questions).values(questionRows);
+
+  return res.json({ saved: true, quiz_id: quizId, question_count: quiz.length });
+}
+
+export async function getSavedQuiz(req, res) {
+  const { courseId } = req.params;
+
+  const savedQuiz = await db.query.quizzes.findFirst({
+    where: eq(quizzes.course_id, courseId),
+    with: { questions: true },
+  });
+
+  if (!savedQuiz || !savedQuiz.questions || savedQuiz.questions.length === 0) {
+    return res.json({ quiz: null });
+  }
+
+  const formatted = savedQuiz.questions.map((q) => ({
+    question: q.question,
+    options: typeof q.options === "string" ? JSON.parse(q.options) : q.options,
+    answer: q.answer,
+  }));
+
+  return res.json({ quiz: formatted, quiz_id: savedQuiz.id });
 }

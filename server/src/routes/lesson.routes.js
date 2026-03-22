@@ -9,6 +9,7 @@ import {
 } from '../controllers/lesson.controller.js';
 import {
   authenticateJWT,
+  optionalAuth,
   authorizeRole,
   validateCourseOwnership,
   validateRequest,
@@ -22,8 +23,7 @@ const router = Router({ mergeParams: true });
 router.get(
   '/',
   validateRequest(validationSchemas.lessons.courseParam),
-  authenticateJWT,
-  requireCourseEnrollment('courseId'),
+  optionalAuth,
   getLessons
 );
 

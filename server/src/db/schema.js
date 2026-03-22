@@ -39,6 +39,7 @@ export const courses = mysqlTable("courses", {
   price: decimal("price", { precision: 10, scale: 2 }).default("0.00"),
   is_free: boolean("is_free").default(true),
   is_published: boolean("is_published").default(false),
+  dodo_product_id: varchar("dodo_product_id", { length: 255 }),
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
   deleted_at: timestamp("deleted_at"),

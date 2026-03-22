@@ -596,11 +596,23 @@ const swaggerDocument = {
       /* ── AI ── */
       GenerateQuizRequest: {
         type: "object",
-        required: ["lesson_text"],
         properties: {
+          course_id: {
+            type: "string",
+            format: "uuid",
+            description: "Course ID whose resources will be used as input for quiz generation",
+            example: "550e8400-e29b-41d4-a716-446655440000",
+          },
+          lesson_id: {
+            type: "string",
+            format: "uuid",
+            description: "Optional lesson ID; used primarily for assessment linking and legacy lesson-based quizzes",
+            example: "550e8400-e29b-41d4-a716-446655440001",
+          },
           lesson_text: {
             type: "string",
-            description: "Non-empty lesson content to base questions on",
+            description:
+              "Optional raw lesson content to base questions on when course_id or lesson_id are not provided",
             example:
               "Node.js is a JavaScript runtime built on Chrome's V8 engine. It uses an event-driven, non-blocking I/O model that makes it lightweight and efficient.",
           },

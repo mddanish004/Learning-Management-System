@@ -22,16 +22,42 @@ export async function register(req, res) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const userId = uuid();
 
     await db.insert(users).values({
-        id: uuid(),
+        id: userId,
         name,
         email,
         password_hash: passwordHash,
         role,
     });
 
-    res.status(201).json({ message: "User created" });
+    const user = { id: userId, name, email, role };
+
+    const sessionId = uuid();
+    const refreshToken = signRefreshToken(sessionId);
+
+    await db.insert(sessions).values({
+        id: sessionId,
+        user_id: userId,
+        refresh_token: encrypt(refreshToken),
+        user_agent: req.headers["user-agent"],
+        ip_address: req.ip,
+        expires_at: new Date(Date.now() + 7 * 86400000),
+    });
+
+    res.cookie("refresh_token", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/api/auth/refresh",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(201).json({
+        message: "User created",
+        accessToken: signAccessToken(user),
+    });
 }
 
 export async function registerInstructor(req, res) {

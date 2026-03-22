@@ -5,10 +5,10 @@ import { courses, enrollments, lesson_progress, lessons, payments, resources } f
 import {
   buildResourceS3Key,
   createSignedDownloadUrl,
-  createSignedUploadUrl,
   getS3BucketName,
   isS3Configured,
   removeS3Object,
+  uploadS3Object,
 } from '../utils/s3.js';
 
 const VALID_ENROLLMENT_STATUSES = ['active', 'completed'];
@@ -231,25 +231,27 @@ export async function listInstructorCourseResources(req, res) {
   });
 }
 
-export async function generateInstructorResourceUploadUrl(req, res) {
+export async function uploadInstructorResource(req, res) {
   if (!isS3Configured()) {
     return res.status(500).json({ error: 'S3 is not configured' });
   }
 
   const { id: courseId } = req.params;
   const instructorId = req.user.sub;
-  const { file_name: fileName, file_type: fileType, file_size: fileSize } = req.body;
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file provided' });
+  }
 
   const course = await getOwnedCourse(courseId, instructorId);
-
   if (!course) {
     return res.status(404).json({ error: 'Course not found' });
   }
 
   const validation = normalizeUploadRequest({
-    file_name: fileName,
-    file_type: fileType,
-    file_size: fileSize,
+    file_name: req.file.originalname,
+    file_type: req.file.mimetype,
+    file_size: req.file.size,
   });
 
   if (validation.errors.length > 0) {
@@ -260,9 +262,10 @@ export async function generateInstructorResourceUploadUrl(req, res) {
   const bucket = getS3BucketName();
   const s3Key = buildResourceS3Key(courseId, resourceId, validation.normalizedFileName);
 
-  const { url, expiresIn } = await createSignedUploadUrl({
+  await uploadS3Object({
     bucket,
     key: s3Key,
+    body: req.file.buffer,
     contentType: validation.normalizedMimeType,
   });
 
@@ -277,22 +280,11 @@ export async function generateInstructorResourceUploadUrl(req, res) {
     s3_bucket: bucket,
   });
 
-  return res.status(201).json({
-    resource_id: resourceId,
-    upload_url: url,
-    expires_in: expiresIn,
-    method: 'PUT',
-    required_headers: {
-      'Content-Type': validation.normalizedMimeType,
-    },
-    resource: {
-      id: resourceId,
-      course_id: courseId,
-      file_name: validation.normalizedFileName,
-      file_type: validation.normalizedMimeType,
-      file_size: validation.parsedSize,
-    },
+  const saved = await db.query.resources.findFirst({
+    where: eq(resources.id, resourceId),
   });
+
+  return res.status(201).json({ resource: saved });
 }
 
 export async function deleteInstructorCourseResource(req, res) {

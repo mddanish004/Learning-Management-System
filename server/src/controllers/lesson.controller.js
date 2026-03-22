@@ -1,11 +1,12 @@
 import { db } from '../db/db.js';
-import { lessons, lesson_progress, courses } from '../db/schema.js';
+import { lessons, lesson_progress, courses, enrollments } from '../db/schema.js';
 import { v4 as uuid } from 'uuid';
-import { eq, and, isNull, asc, gt, gte, lt, lte, sql } from 'drizzle-orm';
+import { eq, and, isNull, asc, gt, gte, lt, lte, sql, inArray } from 'drizzle-orm';
 
 const TITLE_MIN_LENGTH = 3;
 const TITLE_MAX_LENGTH = 200;
 const CONTENT_TEXT_MAX_LENGTH = 50000;
+const ASSESSMENT_TITLE = 'Final assessment quiz';
 
 const YOUTUBE_REGEX = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:\S*)?$/;
 
@@ -64,6 +65,39 @@ function formatLessonResponse(lesson) {
   };
 }
 
+async function ensureAssessmentLesson(courseId) {
+  const existing = await db.query.lessons.findFirst({
+    where: and(eq(lessons.course_id, courseId), eq(lessons.title, ASSESSMENT_TITLE)),
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  const maxOrderResult = await db
+    .select({ maxOrder: sql`COALESCE(MAX(order_index), -1)` })
+    .from(lessons)
+    .where(eq(lessons.course_id, courseId));
+
+  const nextOrder = Number(maxOrderResult[0].maxOrder) + 1;
+  const assessmentId = uuid();
+
+  await db.insert(lessons).values({
+    id: assessmentId,
+    course_id: courseId,
+    title: ASSESSMENT_TITLE,
+    youtube_video_id: null,
+    order_index: nextOrder,
+    content_text: 'Complete this final assessment quiz to confirm your understanding of the course.',
+  });
+
+  const created = await db.query.lessons.findFirst({
+    where: eq(lessons.id, assessmentId),
+  });
+
+  return created;
+}
+
 export async function createLesson(req, res) {
   const { courseId } = req.params;
   const { title, youtube_url, order_index, content_text } = req.body;
@@ -114,8 +148,26 @@ export async function createLesson(req, res) {
   res.status(201).json({ message: 'Lesson created', lesson: formatLessonResponse(lesson) });
 }
 
+async function hasFullAccess(userId, userRole, course) {
+  if (!userId) return false;
+  if (userRole === 'admin') return true;
+  if (userRole === 'instructor' && course.instructor_id === userId) return true;
+
+  const enrollment = await db.query.enrollments.findFirst({
+    where: and(
+      eq(enrollments.user_id, userId),
+      eq(enrollments.course_id, course.id),
+      inArray(enrollments.status, ['active', 'completed'])
+    ),
+  });
+
+  return !!enrollment;
+}
+
 export async function getLessons(req, res) {
   const { courseId } = req.params;
+  const userId = req.user?.sub;
+  const userRole = req.user?.role;
 
   const course = await db.query.courses.findFirst({
     where: and(eq(courses.id, courseId), isNull(courses.deleted_at)),
@@ -130,8 +182,34 @@ export async function getLessons(req, res) {
     orderBy: [asc(lessons.order_index)],
   });
 
+  const hasAssessment = lessonList.some((l) => l.title === ASSESSMENT_TITLE);
+  let finalLessons = lessonList;
+
+  if (!hasAssessment) {
+    const assessmentLesson = await ensureAssessmentLesson(courseId);
+    if (assessmentLesson) {
+      finalLessons = [...lessonList, assessmentLesson].sort(
+        (a, b) => (a.order_index ?? 0) - (b.order_index ?? 0),
+      );
+    }
+  }
+
+  const full = await hasFullAccess(userId, userRole, course);
+
+  if (full) {
+    return res.json({
+      lessons: finalLessons.map(formatLessonResponse),
+    });
+  }
+
   res.json({
-    lessons: lessonList.map(formatLessonResponse),
+    lessons: finalLessons.map((l) => ({
+      id: l.id,
+      title: l.title,
+      order_index: l.order_index,
+      has_video: !!l.youtube_video_id,
+      has_content: !!l.content_text,
+    })),
   });
 }
 

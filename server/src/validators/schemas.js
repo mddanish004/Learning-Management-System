@@ -61,12 +61,34 @@ export const validationSchemas = {
   ai: {
     generateQuiz: {
       body: Joi.object({
-        lesson_text: Joi.string().trim().min(1).required(),
+        course_id: id.optional(),
+        lesson_id: id.optional(),
+        lesson_text: Joi.string().trim().min(1),
         num_questions: Joi.number().integer().min(1).max(20).optional(),
+      }).or('course_id', 'lesson_id', 'lesson_text'),
+    },
+    saveQuiz: {
+      body: Joi.object({
+        course_id: id,
+        quiz: Joi.array().items(Joi.object({
+          question: Joi.string().trim().min(1).required(),
+          options: Joi.array().items(Joi.string().trim().min(1)).length(4).required(),
+          answer: Joi.string().trim().valid('A', 'B', 'C', 'D').required(),
+        })).min(1).max(20).required(),
+      }),
+    },
+    getSavedQuiz: {
+      params: Joi.object({
+        courseId: id,
       }),
     },
   },
   certificates: {
+    getByCourse: {
+      params: Joi.object({
+        courseId: id,
+      }),
+    },
     generate: {
       params: Joi.object({
         courseId: id,
@@ -265,12 +287,24 @@ export const validationSchemas = {
         file_size: fileSize.required(),
       }),
     },
+    confirmResource: {
+      params: Joi.object({
+        id,
+      }),
+      body: Joi.object({
+        resource_id: id,
+        file_name: fileName.required(),
+        file_type: fileType.required(),
+        file_size: fileSize.required(),
+        s3_key: Joi.string().trim().min(1).max(512).required(),
+        s3_bucket: Joi.string().trim().min(1).max(255).required(),
+      }),
+    },
   },
   payments: {
     createOrder: {
       body: Joi.object({
         course_id: id,
-        dodo_product_id: Joi.string().trim().min(1).required(),
         quantity: Joi.number().integer().min(1).optional(),
         return_url: Joi.string().uri().optional().allow('', null),
       }),
@@ -296,6 +330,11 @@ export const validationSchemas = {
     },
   },
   resources: {
+    courseIdParam: {
+      params: Joi.object({
+        courseId: id,
+      }),
+    },
     idParam: {
       params: Joi.object({
         id,
@@ -307,6 +346,17 @@ export const validationSchemas = {
         file_name: fileName.required(),
         file_type: fileType.optional(),
         file_size: fileSize.required(),
+      }),
+    },
+    confirm: {
+      body: Joi.object({
+        resource_id: id,
+        course_id: id,
+        file_name: fileName.required(),
+        file_type: fileType.required(),
+        file_size: fileSize.required(),
+        s3_key: Joi.string().trim().min(1).max(512).required(),
+        s3_bucket: Joi.string().trim().min(1).max(255).required(),
       }),
     },
   },

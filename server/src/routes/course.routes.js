@@ -11,7 +11,7 @@ import {
   enrollInFreeCourse,
   listCourseEnrollments,
 } from '../controllers/enrollment.controller.js';
-import { authenticateJWT, authorizeRole, validateCourseOwnership, validateRequest, ROLES } from '../middlewares/index.js';
+import { authenticateJWT, optionalAuth, authorizeRole, validateCourseOwnership, validateRequest, ROLES } from '../middlewares/index.js';
 import lessonRoutes from './lesson.routes.js';
 import { validationSchemas } from '../validators/schemas.js';
 
@@ -45,7 +45,7 @@ router.get(
   listCourseEnrollments
 );
 
-router.get('/:id', validateRequest(validationSchemas.courses.idParam), getCourseById);
+router.get('/:id', validateRequest(validationSchemas.courses.idParam), optionalAuth, getCourseById);
 
 router.post(
   '/',

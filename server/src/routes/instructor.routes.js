@@ -5,20 +5,26 @@ import {
   getInstructorCourses,
   updateCourse,
 } from '../controllers/course.controller.js';
+import multer from 'multer';
 import {
   deleteInstructorCourseResource,
   generateInstructorCourseResourceDownloadUrl,
-  generateInstructorResourceUploadUrl,
   getInstructorCourseAnalytics,
   getInstructorCourseEnrollments,
   listInstructorCourseResources,
+  uploadInstructorResource,
 } from '../controllers/instructor.controller.js';
 import { authenticateJWT, authorizeRole, validateCourseOwnership, validateRequest, ROLES } from '../middlewares/index.js';
 import { validationSchemas } from '../validators/schemas.js';
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 const router = Router();
 
-router.use(authenticateJWT, authorizeRole([ROLES.INSTRUCTOR]));
+router.use(authenticateJWT, authorizeRole([ROLES.INSTRUCTOR, ROLES.ADMIN]));
 
 router.get('/courses', validateRequest(validationSchemas.instructor.listCourses), getInstructorCourses);
 router.post('/courses', validateRequest(validationSchemas.instructor.createCourse), createCourse);
@@ -54,10 +60,10 @@ router.get(
   listInstructorCourseResources
 );
 router.post(
-  '/courses/:id/resources/upload-url',
-  validateRequest(validationSchemas.instructor.uploadResource),
+  '/courses/:id/resources/upload',
   validateCourseOwnership('id'),
-  generateInstructorResourceUploadUrl
+  upload.single('file'),
+  uploadInstructorResource
 );
 router.get(
   '/courses/:id/resources/:resourceId/download',

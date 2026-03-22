@@ -121,6 +121,10 @@ export async function getCourses(req, res) {
     conditions.push(eq(courses.instructor_id, instructor_id));
   }
 
+  conditions.push(
+    sql`NOT (${courses.title} REGEXP ${'^(Cert QA Course.*|Free Course [A-Z]_.*|Paid Course_.*)'})`,
+  );
+
   const validSortFields = ['created_at', 'title', 'price', 'updated_at'];
   const sortField = validSortFields.includes(sort_by) ? sort_by : 'created_at';
   const sortDirection = sort_order === 'asc' ? asc : desc;
