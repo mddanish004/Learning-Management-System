@@ -5,7 +5,11 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const algorithm = "aes-256-gcm";
-const key = Buffer.from(process.env.REFRESH_TOKEN_ENCRYPTION_KEY);
+const secret = process.env.REFRESH_TOKEN_ENCRYPTION_KEY || '';
+if (!secret) {
+  throw new Error('REFRESH_TOKEN_ENCRYPTION_KEY is required');
+}
+const key = crypto.createHash('sha256').update(secret, 'utf8').digest();
 
 export function encrypt(text) {
   const iv = crypto.randomBytes(12);
