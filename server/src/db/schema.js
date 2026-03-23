@@ -14,11 +14,11 @@ import {
 } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
-const UserRole = mysqlEnum("user_role", ["learner", "instructor", "admin"]);
-const ContentType = mysqlEnum("content_type", ["video", "pdf", "assignment"]);
-const QuizGeneratedBy = mysqlEnum("quiz_generated_by", ["llm"]);
-const EnrollmentStatus = mysqlEnum("enrollment_status", ["active", "completed"]);
-const PaymentStatus = mysqlEnum("payment_status", ["pending", "processing", "success", "failed", "cancelled"]);
+const UserRole = mysqlEnum("role", ["learner", "instructor", "admin"]);
+const ContentType = mysqlEnum("type", ["video", "pdf", "assignment"]);
+const QuizGeneratedBy = mysqlEnum("generated_by", ["llm"]);
+const EnrollmentStatus = mysqlEnum("status", ["active", "completed"]);
+const PaymentStatus = mysqlEnum("status", ["pending", "processing", "success", "failed", "cancelled"]);
 
 
 
