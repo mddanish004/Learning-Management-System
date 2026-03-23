@@ -7,6 +7,7 @@ import {
   RefreshCw,
   BookOpen,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import CourseCard from '../components/CourseCard'
@@ -77,7 +78,7 @@ function CourseCatalogPage() {
       if (sortBy) params.set('sort_by', sortBy)
       if (sortOrder) params.set('sort_order', sortOrder)
 
-      const res = await fetch(`/api/v1/courses?${params}`, { credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses?${params}`), { credentials: 'include' })
       if (!res.ok) throw new Error('Failed to fetch courses')
 
       const data = await res.json()

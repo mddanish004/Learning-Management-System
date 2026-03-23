@@ -21,6 +21,7 @@ import {
   CheckCircle,
   BarChart3,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import BrandLogo from '../components/BrandLogo'
 import Footer from '../components/Footer'
@@ -49,7 +50,7 @@ function CourseDetailPage() {
     setError(null)
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const courseRes = await fetch(`/api/v1/courses/${id}`, { headers, credentials: 'include' })
+      const courseRes = await fetch(apiUrl(`/api/v1/courses/${id}`), { headers, credentials: 'include' })
 
       if (!courseRes.ok) {
         if (courseRes.status === 404) throw new Error('Course not found')
@@ -62,7 +63,7 @@ function CourseDetailPage() {
       if (c.is_enrolled) setEnrolled(true)
 
       try {
-        const lessonsRes = await fetch(`/api/v1/courses/${id}/lessons`, { headers, credentials: 'include' })
+        const lessonsRes = await fetch(apiUrl(`/api/v1/courses/${id}/lessons`), { headers, credentials: 'include' })
         if (lessonsRes.ok) {
           const lessonsData = await lessonsRes.json()
           setLessons(lessonsData.lessons || lessonsData.data || lessonsData || [])
@@ -105,7 +106,7 @@ function CourseDetailPage() {
     setDeleting(true)
     try {
       const token = sessionStorage.getItem('accessToken')
-      const res = await fetch(`/api/v1/courses/${id}`, {
+      const res = await fetch(apiUrl(`/api/v1/courses/${id}`), {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
@@ -127,7 +128,7 @@ function CourseDetailPage() {
     setEnrollError('')
     setEnrollSuccess(false)
     try {
-      const res = await fetch(`/api/v1/courses/${id}/enroll`, {
+      const res = await fetch(apiUrl(`/api/v1/courses/${id}/enroll`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         credentials: 'include',

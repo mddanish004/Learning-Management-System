@@ -24,6 +24,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      DATABASE_SSL: "false"
       DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/lms
     depends_on:
       mysql:

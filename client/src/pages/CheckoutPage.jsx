@@ -12,6 +12,7 @@ import {
   ExternalLink,
   RefreshCw,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -32,7 +33,7 @@ function CheckoutPage() {
     setCourseError(null)
     try {
       const courseHeaders = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`/api/v1/courses/${courseId}`, { headers: courseHeaders, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}`), { headers: courseHeaders, credentials: 'include' })
       if (!res.ok) {
         if (res.status === 404) throw new Error('Course not found')
         throw new Error('Failed to load course')
@@ -64,7 +65,7 @@ function CheckoutPage() {
     try {
       const returnUrl = `${window.location.origin}/checkout/result?courseId=${courseId}`
 
-      const res = await fetch('/api/v1/payments/order', {
+      const res = await fetch(apiUrl('/api/v1/payments/order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({

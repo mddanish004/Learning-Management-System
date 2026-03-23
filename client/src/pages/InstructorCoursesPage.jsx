@@ -15,6 +15,7 @@ import {
   Users,
   FileText,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -35,7 +36,7 @@ function InstructorCoursesPage() {
       const token = sessionStorage.getItem('accessToken')
       const params = new URLSearchParams()
       if (includeDeleted) params.set('include_deleted', 'true')
-      const res = await fetch(`/api/v1/courses/my-courses?${params}`, {
+      const res = await fetch(apiUrl(`/api/v1/courses/my-courses?${params}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       })
@@ -69,7 +70,7 @@ function InstructorCoursesPage() {
     setDeleteResult(null)
     try {
       const token = sessionStorage.getItem('accessToken')
-      const res = await fetch(`/api/v1/courses/${deleteTarget.id}`, {
+      const res = await fetch(apiUrl(`/api/v1/courses/${deleteTarget.id}`), {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',

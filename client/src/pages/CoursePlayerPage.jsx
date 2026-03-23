@@ -15,6 +15,7 @@ import {
   Award,
   FileText,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import { useAuth } from '../hooks/useAuth'
@@ -43,7 +44,7 @@ function CoursePlayerPage() {
   const fetchCourse = useCallback(async () => {
     try {
       const courseHeaders = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`/api/v1/courses/${courseId}`, { headers: courseHeaders, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}`), { headers: courseHeaders, credentials: 'include' })
       if (!res.ok) {
         if (res.status === 404) throw new Error('Course not found')
         throw new Error('Failed to load course')
@@ -75,8 +76,8 @@ function CoursePlayerPage() {
       return
     }
     Promise.all([
-      fetch(`/api/v1/courses/${courseId}/lessons`, { headers, credentials: 'include' }),
-      fetch(`/api/v1/progress/${courseId}`, { headers, credentials: 'include' }),
+      fetch(apiUrl(`/api/v1/courses/${courseId}/lessons`), { headers, credentials: 'include' }),
+      fetch(apiUrl(`/api/v1/progress/${courseId}`), { headers, credentials: 'include' }),
     ])
       .then(async ([lessonsRes, progressRes]) => {
         if (lessonsRes.ok) {
@@ -107,14 +108,14 @@ function CoursePlayerPage() {
     }
     setCompletingId(lessonId)
     try {
-      const res = await fetch(`/api/v1/lessons/${lessonId}/complete`, {
+      const res = await fetch(apiUrl(`/api/v1/lessons/${lessonId}/complete`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({}),
         credentials: 'include',
       })
       if (res.ok) {
-        const progressRes = await fetch(`/api/v1/progress/${courseId}`, { headers, credentials: 'include' })
+        const progressRes = await fetch(apiUrl(`/api/v1/progress/${courseId}`), { headers, credentials: 'include' })
         if (progressRes.ok) {
           const progressData = await progressRes.json()
           setProgress(progressData)

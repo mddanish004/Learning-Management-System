@@ -15,6 +15,7 @@ import {
   UserCheck,
   Clock,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -35,7 +36,7 @@ function InstructorAnalyticsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/v1/instructor/courses/${courseId}/analytics`, {
+      const res = await fetch(apiUrl(`/api/v1/instructor/courses/${courseId}/analytics`), {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       })

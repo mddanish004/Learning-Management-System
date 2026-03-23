@@ -17,6 +17,7 @@ import {
   School,
   GraduationCap,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import CourseCard from '../components/CourseCard'
@@ -99,7 +100,7 @@ function LandingPage() {
   useEffect(() => {
     async function loadCourses() {
       try {
-        const res = await fetch('/api/v1/courses?limit=6&is_published=true&sort_by=created_at&sort_order=desc')
+        const res = await fetch(apiUrl('/api/v1/courses?limit=6&is_published=true&sort_by=created_at&sort_order=desc'))
         if (res.ok) {
           const data = await res.json()
           setFeaturedCourses(data.courses || [])

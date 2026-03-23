@@ -1,3 +1,11 @@
+const rawBase = import.meta.env.VITE_API_URL || ''
+const API_BASE = rawBase.replace(/\/$/, '')
+
+export function apiUrl(path) {
+  const p = path.startsWith('/') ? path : `/${path}`
+  return API_BASE ? `${API_BASE}${p}` : p
+}
+
 function getToken() {
   return sessionStorage.getItem('accessToken')
 }
@@ -27,7 +35,7 @@ function isTokenExpired(token) {
 
 async function refreshAccessToken() {
   try {
-    const res = await fetch('/api/auth/refresh', {
+    const res = await fetch(apiUrl('/api/auth/refresh'), {
       method: 'POST',
       credentials: 'include',
     })

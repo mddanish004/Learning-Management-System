@@ -12,6 +12,7 @@ import {
   Clock,
   Award,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import BrandLogo from '../components/BrandLogo'
 import Footer from '../components/Footer'
@@ -57,7 +58,7 @@ function LearnerEnrollmentsPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) })
       if (statusFilter !== 'all') params.set('status', statusFilter)
-      const res = await fetch(`/api/v1/enrollments?${params.toString()}`, {
+      const res = await fetch(apiUrl(`/api/v1/enrollments?${params.toString()}`), {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       })

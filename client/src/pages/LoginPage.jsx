@@ -11,6 +11,7 @@ import {
   BarChart3,
   Award,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../hooks/useAuth'
@@ -58,7 +59,7 @@ function LoginPage() {
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

@@ -10,6 +10,7 @@ import {
   File,
   RefreshCw,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -59,7 +60,7 @@ function CourseResourcesPage() {
     setCourseError(null)
     try {
       const courseHeaders = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`/api/v1/courses/${courseId}`, { headers: courseHeaders, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}`), { headers: courseHeaders, credentials: 'include' })
       if (!res.ok) {
         if (res.status === 404) throw new Error('Course not found')
         throw new Error('Failed to load course')
@@ -69,7 +70,7 @@ function CourseResourcesPage() {
 
       if (token) {
         try {
-          const resResources = await fetch(`/api/v1/resources/course/${courseId}`, {
+          const resResources = await fetch(apiUrl(`/api/v1/resources/course/${courseId}`), {
             headers: courseHeaders,
             credentials: 'include',
           })
@@ -100,7 +101,7 @@ function CourseResourcesPage() {
     setDownloadingId(resourceId)
     setDownloadError('')
     try {
-      const res = await fetch(`/api/v1/resources/${resourceId}/download`, {
+      const res = await fetch(apiUrl(`/api/v1/resources/${resourceId}/download`), {
         headers: authHeaders,
         credentials: 'include',
       })

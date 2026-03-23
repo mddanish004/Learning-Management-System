@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: lms-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm run start:prod
+    healthCheckPath: /api-docs
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_SSL
+        value: "true"
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: REFRESH_TOKEN_ENCRYPTION_KEY
+        sync: false

@@ -14,6 +14,7 @@ import {
   BarChart3,
   UserX,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -48,7 +49,7 @@ function InstructorEnrollmentsPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) })
       if (statusFilter) params.set('status', statusFilter)
-      const res = await fetch(`/api/v1/instructor/courses/${courseId}/enrollments?${params}`, {
+      const res = await fetch(apiUrl(`/api/v1/instructor/courses/${courseId}/enrollments?${params}`), {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       })

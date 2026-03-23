@@ -9,6 +9,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../hooks/useAuth'
@@ -77,7 +78,7 @@ function RegisterPage() {
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(apiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -11,6 +11,7 @@ import {
   BookOpen,
   ArrowLeft,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -43,7 +44,7 @@ function PaymentResultPage() {
     if (!courseId) return
     try {
       const courseHeaders = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`/api/v1/courses/${courseId}`, { headers: courseHeaders, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}`), { headers: courseHeaders, credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setCourse(data.course || data)
@@ -59,7 +60,7 @@ function PaymentResultPage() {
       return false
     }
     try {
-      const res = await fetch(`/api/v1/payments/verify/${courseId}`, {
+      const res = await fetch(apiUrl(`/api/v1/payments/verify/${courseId}`), {
         headers: authHeaders,
         credentials: 'include',
       })

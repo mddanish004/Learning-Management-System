@@ -11,6 +11,7 @@ import {
   Layers,
   Award,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -36,7 +37,7 @@ function CourseProgressPage() {
       setAccessError('')
       try {
         const courseHeaders = token ? { Authorization: `Bearer ${token}` } : {}
-        const courseRes = await fetch(`/api/v1/courses/${courseId}`, { headers: courseHeaders, credentials: 'include' })
+        const courseRes = await fetch(apiUrl(`/api/v1/courses/${courseId}`), { headers: courseHeaders, credentials: 'include' })
         if (!courseRes.ok) {
           if (courseRes.status === 404) {
             if (!cancelled) setError('Course not found')
@@ -65,7 +66,7 @@ function CourseProgressPage() {
       }
 
       try {
-        const progressRes = await fetch(`/api/v1/progress/${courseId}`, { headers, credentials: 'include' })
+        const progressRes = await fetch(apiUrl(`/api/v1/progress/${courseId}`), { headers, credentials: 'include' })
         if (progressRes.ok) {
           const progressData = await progressRes.json()
           if (!cancelled) setProgress(progressData)

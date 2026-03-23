@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ArrowLeft,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -48,7 +49,7 @@ function AdminToolsPage() {
 
     setSubmitting(true)
     try {
-      const res = await fetch('/api/auth/register/admin', {
+      const res = await fetch(apiUrl('/api/auth/register/admin'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

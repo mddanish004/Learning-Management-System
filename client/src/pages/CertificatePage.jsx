@@ -11,6 +11,7 @@ import {
   BarChart3,
   RefreshCw,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import BrandLogo from '../components/BrandLogo'
 import Footer from '../components/Footer'
@@ -38,7 +39,7 @@ function CertificatePage() {
     setError(null)
     try {
       const courseHeaders = token ? { Authorization: `Bearer ${token}` } : {}
-      const courseRes = await fetch(`/api/v1/courses/${courseId}`, { headers: courseHeaders, credentials: 'include' })
+      const courseRes = await fetch(apiUrl(`/api/v1/courses/${courseId}`), { headers: courseHeaders, credentials: 'include' })
       if (!courseRes.ok) {
         if (courseRes.status === 404) throw new Error('Course not found')
         throw new Error('Failed to load course')
@@ -52,8 +53,8 @@ function CertificatePage() {
       }
 
       const [progressRes, certRes] = await Promise.all([
-        fetch(`/api/v1/progress/${courseId}`, { headers: authHeaders, credentials: 'include' }),
-        fetch(`/api/v1/certificates/course/${courseId}`, { headers: authHeaders, credentials: 'include' }),
+        fetch(apiUrl(`/api/v1/progress/${courseId}`), { headers: authHeaders, credentials: 'include' }),
+        fetch(apiUrl(`/api/v1/certificates/course/${courseId}`), { headers: authHeaders, credentials: 'include' }),
       ])
 
       if (progressRes.ok) {
@@ -83,7 +84,7 @@ function CertificatePage() {
     setGenerating(true)
     setGenerateError('')
     try {
-      const res = await fetch(`/api/v1/certificates/generate/${courseId}`, {
+      const res = await fetch(apiUrl(`/api/v1/certificates/generate/${courseId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         credentials: 'include',
@@ -125,7 +126,7 @@ function CertificatePage() {
     setDownloading(true)
     setDownloadError('')
     try {
-      const res = await fetch(`/api/v1/certificates/${certificate.id}/download`, {
+      const res = await fetch(apiUrl(`/api/v1/certificates/${certificate.id}/download`), {
         headers: authHeaders,
         credentials: 'include',
       })

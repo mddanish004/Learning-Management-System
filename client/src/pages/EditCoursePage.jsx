@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2, X, BookOpen, RefreshCw, Edit } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { apiUrl } from '../lib/api'
 
 const TITLE_MIN = 3
 const TITLE_MAX = 200
@@ -35,7 +36,7 @@ function EditCoursePage() {
     setLoadError(null)
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`/api/v1/courses/${id}`, { headers, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${id}`), { headers, credentials: 'include' })
       if (!res.ok) {
         if (res.status === 404) throw new Error('Course not found')
         if (res.status === 403) throw new Error('You do not have permission to edit this course')
@@ -119,7 +120,7 @@ function EditCoursePage() {
         body.price = formData.price
       }
 
-      const res = await fetch(`/api/v1/courses/${id}`, {
+      const res = await fetch(apiUrl(`/api/v1/courses/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

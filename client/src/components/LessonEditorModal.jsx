@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { X, Save, Trash2, Loader2, AlertTriangle, Video } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 
 const TITLE_MIN = 3
 const TITLE_MAX = 200
@@ -44,7 +45,7 @@ export default function LessonEditorModal({ courseId, lessonId, onClose, onSaved
     setLoading(true)
     setLoadError(null)
     try {
-      const res = await fetch(`/api/v1/courses/${courseId}/lessons/${lessonId}`, { headers, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}/lessons/${lessonId}`), { headers, credentials: 'include' })
       if (!res.ok) {
         if (res.status === 404) throw new Error('Lesson not found')
         if (res.status === 403) throw new Error('You do not have permission')
@@ -118,7 +119,7 @@ export default function LessonEditorModal({ courseId, lessonId, onClose, onSaved
         if (!isNaN(n) && n >= 0) body.order_index = n
       }
       if (isNew) {
-        const res = await fetch(`/api/v1/courses/${courseId}/lessons`, {
+        const res = await fetch(apiUrl(`/api/v1/courses/${courseId}/lessons`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...headers },
           body: JSON.stringify(body),
@@ -132,7 +133,7 @@ export default function LessonEditorModal({ courseId, lessonId, onClose, onSaved
         onSaved?.(data.lesson)
         onClose?.()
       } else {
-        const res = await fetch(`/api/v1/courses/${courseId}/lessons/${lessonId}`, {
+        const res = await fetch(apiUrl(`/api/v1/courses/${courseId}/lessons/${lessonId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...headers },
           body: JSON.stringify(body),
@@ -157,7 +158,7 @@ export default function LessonEditorModal({ courseId, lessonId, onClose, onSaved
     if (isNew) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/v1/courses/${courseId}/lessons/${lessonId}`, {
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}/lessons/${lessonId}`), {
         method: 'DELETE',
         headers,
         credentials: 'include',

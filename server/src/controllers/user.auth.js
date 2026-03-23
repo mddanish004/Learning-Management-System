@@ -10,6 +10,26 @@ import { AuthError } from '../errors/index.js';
 
 const VALID_ROLES = [ROLES.LEARNER, ROLES.INSTRUCTOR, ROLES.ADMIN];
 
+function refreshCookieOpts() {
+  const cross = !!process.env.FRONTEND_ORIGIN;
+  const sameSite = cross ? "none" : "strict";
+  const secure = cross ? true : process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: "/api/auth/refresh",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+}
+
+function clearRefreshCookieOpts() {
+  const cross = !!process.env.FRONTEND_ORIGIN;
+  const sameSite = cross ? "none" : "strict";
+  const secure = cross ? true : process.env.NODE_ENV === "production";
+  return { path: "/api/auth/refresh", sameSite, secure };
+}
+
 export async function register(req, res) {
     const { name, email, password, role = ROLES.LEARNER } = req.body;
 
@@ -46,13 +66,7 @@ export async function register(req, res) {
         expires_at: new Date(Date.now() + 7 * 86400000),
     });
 
-    res.cookie("refresh_token", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/api/auth/refresh",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("refresh_token", refreshToken, refreshCookieOpts());
 
     res.status(201).json({
         message: "User created",
@@ -115,13 +129,7 @@ export async function login(req, res) {
     expires_at: new Date(Date.now() + 7 * 86400000),
   });
 
-   res.cookie("refresh_token", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/api/auth/refresh",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+   res.cookie("refresh_token", refreshToken, refreshCookieOpts());
 
   res.json({
     accessToken: signAccessToken(user),
@@ -168,13 +176,7 @@ export async function refresh(req, res) {
     })
     .where(eq(sessions.id, session.id));
 
-    res.cookie("refresh_token", newRefreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/api/auth/refresh",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+    res.cookie("refresh_token", newRefreshToken, refreshCookieOpts());
 
   res.json({
     accessToken: signAccessToken(user),
@@ -195,9 +197,7 @@ export async function logout(req, res) {
   } catch {
   }
 
-  res.clearCookie("refresh_token", {
-    path: "/api/auth/refresh",
-  });
+  res.clearCookie("refresh_token", clearRefreshCookieOpts());
 
   res.sendStatus(204);
 }

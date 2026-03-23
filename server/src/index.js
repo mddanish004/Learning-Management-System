@@ -1,5 +1,7 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
+import cors from "cors";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
@@ -30,8 +32,26 @@ const __dirname = path.dirname(__filename);
 const isProd = process.env.NODE_ENV === "production";
 
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT ?? 3000;
+const rawOrigins = process.env.FRONTEND_ORIGIN || '';
+const allowedOrigins = rawOrigins.split(',').map((o) => o.trim()).filter(Boolean);
 
+app.set('trust proxy', 1);
+app.use(
+  cors({
+    origin:
+      allowedOrigins.length > 0
+        ? (origin, cb) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+              cb(null, true);
+            } else {
+              cb(null, false);
+            }
+          }
+        : true,
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 app.use(attachCorrelationId);
 app.use(normalizeLegacyErrorResponses);
@@ -70,20 +90,22 @@ app.use("/api/v1/certificates", certificateRoutes);
 
 if (isProd) {
   const clientDist = path.join(__dirname, "../../client/dist");
-  app.use(express.static(clientDist));
-  app.use((req, res, next) => {
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      next();
-      return;
-    }
-    if (req.path.startsWith("/api")) {
-      next();
-      return;
-    }
-    res.sendFile(path.join(clientDist, "index.html"), (err) => {
-      if (err) next(err);
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    app.use((req, res, next) => {
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        next();
+        return;
+      }
+      if (req.path.startsWith("/api")) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(clientDist, "index.html"), (err) => {
+        if (err) next(err);
+      });
     });
-  });
+  }
 }
 
 app.use(notFoundHandler);
@@ -107,7 +129,7 @@ process.on('uncaughtException', (error) => {
   });
 });
 
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`Server is listening on ${port}`);
   console.log(`Swagger UI available at http://localhost:${port}/api-docs`);
 });

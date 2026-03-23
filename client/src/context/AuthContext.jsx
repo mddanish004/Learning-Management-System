@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getToken, setToken, clearToken, decodeToken } from '../lib/api'
+import { getToken, setToken, clearToken, decodeToken, apiUrl } from '../lib/api'
 import { AuthContext } from './authContext'
 
 export function AuthProvider({ children }) {
@@ -44,7 +44,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout', {
+      await fetch(apiUrl('/api/auth/logout'), {
         method: 'POST',
         credentials: 'include',
       })

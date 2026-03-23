@@ -14,6 +14,7 @@ import {
   Sparkles,
   Eye,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import LessonEditorModal from '../components/LessonEditorModal'
@@ -42,7 +43,7 @@ function QuizManagerPanel({ courseId }) {
     async function loadExisting() {
       setLoadingSaved(true)
       try {
-        const res = await fetch(`/api/v1/ai/quiz/${courseId}`, {
+        const res = await fetch(apiUrl(`/api/v1/ai/quiz/${courseId}`), {
           headers: authHeaders,
           credentials: 'include',
         })
@@ -89,7 +90,7 @@ function QuizManagerPanel({ courseId }) {
 
     setGenerating(true)
     try {
-      const res = await fetch('/api/v1/ai/quiz', {
+      const res = await fetch(apiUrl('/api/v1/ai/quiz'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ lesson_text: content.trim(), num_questions: count }),
@@ -125,7 +126,7 @@ function QuizManagerPanel({ courseId }) {
     setSaveError('')
     setPublished(false)
     try {
-      const res = await fetch('/api/v1/ai/quiz/save', {
+      const res = await fetch(apiUrl('/api/v1/ai/quiz/save'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ course_id: courseId, quiz: quizResult }),
@@ -335,7 +336,7 @@ function LessonsManagementPage() {
 
   const fetchCourse = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/courses/${courseId}`, { headers, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}`), { headers, credentials: 'include' })
       if (!res.ok) return
       const data = await res.json()
       setCourse(data.course || data)
@@ -348,7 +349,7 @@ function LessonsManagementPage() {
     setLoading(true)
     setLoadError(null)
     try {
-      const res = await fetch(`/api/v1/courses/${courseId}/lessons`, { headers, credentials: 'include' })
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}/lessons`), { headers, credentials: 'include' })
       if (!res.ok) {
         if (res.status === 401) throw new Error('Please log in to manage lessons')
         if (res.status === 403) throw new Error('You do not have permission to manage this course')
@@ -396,7 +397,7 @@ function LessonsManagementPage() {
 
     setReordering(true)
     try {
-      const res = await fetch(`/api/v1/courses/${courseId}/lessons/reorder`, {
+      const res = await fetch(apiUrl(`/api/v1/courses/${courseId}/lessons/reorder`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({ lesson_ids }),

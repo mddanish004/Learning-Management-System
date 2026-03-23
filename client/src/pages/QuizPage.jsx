@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -38,7 +39,7 @@ function QuizPage() {
     async function loadSavedQuiz() {
       setLoadingSaved(true)
       try {
-        const res = await fetch(`/api/v1/ai/quiz/${courseId}`, {
+        const res = await fetch(apiUrl(`/api/v1/ai/quiz/${courseId}`), {
           headers: authHeaders,
           credentials: 'include',
         })
@@ -103,7 +104,7 @@ function QuizPage() {
 
     setSubmittingAssessment(true)
     try {
-      await fetch(`/api/v1/lessons/${lessonId}/complete`, {
+      await fetch(apiUrl(`/api/v1/lessons/${lessonId}/complete`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({}),

@@ -4,6 +4,7 @@ node_modules
 .env.*
 !.env.example
 !server/.env.example
+!client/.env.example
 **/.env
 *.local
 docker-compose.override.yml

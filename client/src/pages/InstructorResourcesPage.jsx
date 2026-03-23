@@ -18,6 +18,7 @@ import {
   BarChart3,
   FolderOpen,
 } from 'lucide-react'
+import { apiUrl } from '../lib/api'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
@@ -92,7 +93,7 @@ function InstructorResourcesPage() {
     setError(null)
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) })
-      const res = await fetch(`/api/v1/instructor/courses/${courseId}/resources?${params}`, {
+      const res = await fetch(apiUrl(`/api/v1/instructor/courses/${courseId}/resources?${params}`), {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       })
@@ -170,7 +171,7 @@ function InstructorResourcesPage() {
       const formData = new FormData()
       formData.append('file', selectedFile)
 
-      const res = await fetch(`/api/v1/instructor/courses/${courseId}/resources/upload`, {
+      const res = await fetch(apiUrl(`/api/v1/instructor/courses/${courseId}/resources/upload`), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -208,7 +209,7 @@ function InstructorResourcesPage() {
     setDownloadError('')
     try {
       const res = await fetch(
-        `/api/v1/instructor/courses/${courseId}/resources/${resourceId}/download`,
+        apiUrl(`/api/v1/instructor/courses/${courseId}/resources/${resourceId}/download`),
         { headers: { Authorization: `Bearer ${token}` }, credentials: 'include' }
       )
       if (!res.ok) {
@@ -237,7 +238,7 @@ function InstructorResourcesPage() {
     setDeleteError('')
     try {
       const res = await fetch(
-        `/api/v1/instructor/courses/${courseId}/resources/${resourceId}`,
+        apiUrl(`/api/v1/instructor/courses/${courseId}/resources/${resourceId}`),
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
