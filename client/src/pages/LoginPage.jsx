@@ -23,6 +23,15 @@ const FEATURES = [
   { icon: Award, label: 'Completion certificates' },
 ]
 
+function asErrorMessage(value, fallback) {
+  if (typeof value === 'string' && value.trim()) return value
+  if (value && typeof value === 'object') {
+    if (typeof value.message === 'string' && value.message.trim()) return value.message
+    if (typeof value.code === 'string' && value.code.trim()) return value.code
+  }
+  return fallback
+}
+
 function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -77,7 +86,7 @@ function LoginPage() {
         } else if (data.errors) {
           setServerError(data.errors.join(', '))
         } else if (data.error) {
-          setServerError(data.error)
+          setServerError(asErrorMessage(data.error, 'Login failed. Please try again.'))
         } else {
           setServerError('Login failed. Please try again.')
         }

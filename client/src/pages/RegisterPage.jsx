@@ -24,6 +24,15 @@ const PASSWORD_CHECKS = [
 const STRENGTH_COLORS = ['bg-gray-200', 'bg-coral', 'bg-sunshine', 'bg-ocean', 'bg-mint']
 const STRENGTH_LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong']
 
+function asErrorMessage(value, fallback) {
+  if (typeof value === 'string' && value.trim()) return value
+  if (value && typeof value === 'object') {
+    if (typeof value.message === 'string' && value.message.trim()) return value.message
+    if (typeof value.code === 'string' && value.code.trim()) return value.code
+  }
+  return fallback
+}
+
 function RegisterPage() {
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -96,7 +105,7 @@ function RegisterPage() {
         if (data.errors) {
           setServerError(data.errors.join(', '))
         } else if (data.error) {
-          setServerError(data.error)
+          setServerError(asErrorMessage(data.error, 'Registration failed. Please try again.'))
         } else {
           setServerError('Registration failed. Please try again.')
         }

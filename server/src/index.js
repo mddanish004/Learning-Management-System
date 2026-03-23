@@ -37,6 +37,28 @@ const app = express();
 const port = process.env.PORT ?? 3000;
 const rawOrigins = process.env.FRONTEND_ORIGIN || '';
 const allowedOrigins = rawOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+const allowedOriginPatterns = allowedOrigins
+  .filter((origin) => origin.includes('*'))
+  .map((origin) => {
+    const escaped = origin.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    return new RegExp(`^${escaped}$`);
+  });
+const allowedOriginExact = new Set(allowedOrigins.filter((origin) => !origin.includes('*')));
+
+function isOriginAllowed(origin) {
+  if (!origin) {
+    return true;
+  }
+  if (allowedOriginExact.has(origin)) {
+    return true;
+  }
+  for (const pattern of allowedOriginPatterns) {
+    if (pattern.test(origin)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 app.set('trust proxy', 1);
 app.use(
@@ -44,7 +66,7 @@ app.use(
     origin:
       allowedOrigins.length > 0
         ? (origin, cb) => {
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (isOriginAllowed(origin)) {
               cb(null, true);
             } else {
               cb(null, false);
