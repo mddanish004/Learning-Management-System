@@ -10,6 +10,16 @@ const PROCESS_BATCH_SIZE = Number(process.env.PAYMENT_ENROLLMENT_RETRY_BATCH_SIZ
 
 let retryJobTimer = null;
 let retryJobRunning = false;
+let retryJobDisabled = false;
+
+function isPaymentSchemaMismatchError(error) {
+  const code = error?.code || error?.cause?.code;
+  if (code !== 'ER_BAD_FIELD_ERROR') {
+    return false;
+  }
+  const message = String(error?.message || error?.cause?.message || '');
+  return message.includes('payment_status') || message.includes('status');
+}
 
 function nextRetryAt(retryCount) {
   if (retryCount >= MAX_RETRY_COUNT) {
@@ -82,7 +92,7 @@ export async function triggerEnrollmentRetryForPayment(paymentId) {
 }
 
 export async function runEnrollmentRetryJob() {
-  if (retryJobRunning) {
+  if (retryJobRunning || retryJobDisabled) {
     return;
   }
 
@@ -91,19 +101,32 @@ export async function runEnrollmentRetryJob() {
   try {
     const now = new Date();
 
-    const duePayments = await db.query.payments.findMany({
-      where: and(
-        eq(payments.status, 'success'),
-        eq(payments.enrollment_created, false),
-        lt(payments.enrollment_retry_count, MAX_RETRY_COUNT),
-        or(
-          isNull(payments.next_enrollment_retry_at),
-          lte(payments.next_enrollment_retry_at, now)
-        )
-      ),
-      orderBy: (p, { asc }) => [asc(p.created_at)],
-      limit: PROCESS_BATCH_SIZE,
-    });
+    let duePayments = [];
+    try {
+      duePayments = await db.query.payments.findMany({
+        where: and(
+          eq(payments.status, 'success'),
+          eq(payments.enrollment_created, false),
+          lt(payments.enrollment_retry_count, MAX_RETRY_COUNT),
+          or(
+            isNull(payments.next_enrollment_retry_at),
+            lte(payments.next_enrollment_retry_at, now)
+          )
+        ),
+        orderBy: (p, { asc }) => [asc(p.created_at)],
+        limit: PROCESS_BATCH_SIZE,
+      });
+    } catch (error) {
+      if (isPaymentSchemaMismatchError(error)) {
+        retryJobDisabled = true;
+        if (retryJobTimer) {
+          clearInterval(retryJobTimer);
+          retryJobTimer = null;
+        }
+        return;
+      }
+      throw error;
+    }
 
     for (const paymentRecord of duePayments) {
       await attemptEnrollmentForPayment(paymentRecord);
@@ -114,7 +137,7 @@ export async function runEnrollmentRetryJob() {
 }
 
 export function startEnrollmentRetryJob() {
-  if (retryJobTimer) {
+  if (retryJobTimer || retryJobDisabled) {
     return;
   }
 

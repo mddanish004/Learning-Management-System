@@ -5,9 +5,16 @@ export function getMysqlSslOptions() {
   if (process.env.DATABASE_SSL === 'false') {
     return undefined;
   }
+  const rejectUnauthorizedEnvRaw = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED;
+  const rejectUnauthorizedEnv =
+    rejectUnauthorizedEnvRaw === 'true' || rejectUnauthorizedEnvRaw === 'false'
+      ? rejectUnauthorizedEnvRaw
+      : undefined;
+  const rejectUnauthorized =
+    rejectUnauthorizedEnv != null ? rejectUnauthorizedEnv === 'true' : !sslFromUrl;
   if (process.env.DATABASE_SSL === 'true' || sslFromUrl) {
     return {
-      rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
+      rejectUnauthorized,
     };
   }
   return undefined;
