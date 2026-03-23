@@ -30,6 +30,8 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isProd = process.env.NODE_ENV === "production";
+const clientDist = path.join(__dirname, "../../client/dist");
+const hasClientDist = fs.existsSync(clientDist);
 
 const app = express();
 const port = process.env.PORT ?? 3000;
@@ -73,7 +75,7 @@ app.use(
   })
 );
 
-if (!isProd) {
+if (!isProd || !hasClientDist) {
   app.get("/", (req, res) => {
     res.redirect("/api-docs");
   });
@@ -89,8 +91,7 @@ app.use("/api/v1/instructor", instructorRoutes);
 app.use("/api/v1/certificates", certificateRoutes);
 
 if (isProd) {
-  const clientDist = path.join(__dirname, "../../client/dist");
-  if (fs.existsSync(clientDist)) {
+  if (hasClientDist) {
     app.use(express.static(clientDist));
     app.use((req, res, next) => {
       if (req.method !== "GET" && req.method !== "HEAD") {
