@@ -1,4 +1,4 @@
-# Learning Management System (LMS)
+# Penta Academy - Learning Management System (LMS)
 
 A full-stack learning platform where instructors create and publish courses, learners enroll and track progress, and administrators manage access. The application pairs a React single-page client with an Express API backed by MySQL, and integrates optional services for file storage (Amazon S3), payments (Dodo Payments), and AI-assisted quiz generation (Hugging Face).
 
